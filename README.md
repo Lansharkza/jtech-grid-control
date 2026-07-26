@@ -3,10 +3,11 @@
 A self-hosted OCPP 1.6J central system and dashboard for the **Teltonika
 TeltoCharge EVC** EV charger. Run it on a NAS, a Raspberry Pi, or any machine
 with Docker, and control your charger from a browser or phone — on your own
-network, no vendor cloud.
+network, or remotely. You can create a port forward on port 8081 and access this anywhere,
+alternatively you can just use a VPN for added security
 
 ```
-TeltoCharge EVC121  ──ws://host:9000/EVC121──▶  central_system.py  ◀──https://host:8080──  you
+TeltoCharge EVC  ──ws://host:9000/EVC121──▶  central_system.py  ◀──https://host:8080── (FW)  my link evcontrol.mylink.whatever:8081
 ```
 
 ## What it does
