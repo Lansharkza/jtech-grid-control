@@ -19,9 +19,7 @@ Everything needed is in this folder. Nothing is fetched from a private registry.
        └── favicon.svg
    ```
 
-   `static` must contain the three files directly. A nested `static/static`
-   folder is the most common upload mistake and the build will silently use
-   stale files.
+   `static` must contain the three files directly.
 
 2. **Edit `docker-compose.yml`** and set `OCPP_ADMIN_PASSWORD`. Leave
    `OCPP_AUTHORIZATION_KEY` commented out unless the charger's SecurityProfile
