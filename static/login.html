@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — JTech Grid Control</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Grid Control">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{
+    --bg:#070b18; --panel:#0f172e; --line:#1e2a4a; --ink:#e8eefc; --dim:#7d8db3;
+    --cyan:#22d3ee; --lime:#a3e635; --violet:#a78bfa; --rose:#fb7185;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; background:var(--bg); color:var(--ink);
+    font-family:var(--mono); display:grid; place-items:center; padding:24px;
+    background-image:
+      radial-gradient(60ch 40ch at 15% -10%, rgba(34,211,238,.16), transparent 70%),
+      radial-gradient(50ch 40ch at 105% 110%, rgba(167,139,250,.16), transparent 70%);
+  }
+  .card{
+    width:100%; max-width:380px; border:1px solid var(--line); background:var(--panel);
+    padding:28px; position:relative; overflow:hidden;
+  }
+  .card::before{
+    content:""; position:absolute; inset:0 0 auto 0; height:2px;
+    background:linear-gradient(90deg,var(--cyan),var(--lime),var(--violet));
+  }
+  .brand{display:grid; justify-items:center; text-align:center; margin-bottom:24px}
+  .brand .mark{width:64px; height:64px}
+  h1{margin:12px 0 3px; font-size:19px; font-weight:700; letter-spacing:.02em}
+  h1 span{color:var(--dim); font-weight:400}
+  p.sub{margin:0; color:var(--dim); font-size:10px; letter-spacing:.28em; text-transform:uppercase}
+  label{display:block; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+        color:var(--dim); margin:14px 0 5px}
+  input{
+    width:100%; padding:10px 12px; background:#080d1c; color:var(--ink);
+    border:1px solid var(--line); font-family:inherit; font-size:14px;
+  }
+  input:focus{outline:2px solid var(--cyan); outline-offset:1px; border-color:transparent}
+  button{
+    width:100%; margin-top:22px; padding:11px; cursor:pointer; color:#04121a;
+    background:linear-gradient(90deg,var(--cyan),var(--lime));
+    border:0; font-family:inherit; font-size:12px; font-weight:700;
+    letter-spacing:.16em; text-transform:uppercase;
+  }
+  button:hover{filter:brightness(1.1)}
+  button:focus-visible{outline:2px solid var(--ink); outline-offset:2px}
+  button[disabled]{opacity:.5; cursor:default}
+  .remember{display:flex; align-items:center; gap:8px; margin-top:16px; font-size:11px;
+            letter-spacing:0; text-transform:none; color:var(--dim); cursor:pointer}
+  .remember input{width:auto; margin:0; accent-color:var(--cyan)}
+  .buildline{margin:18px 0 0; text-align:center; font-size:10px; color:var(--dim)}
+  #err{margin-top:14px; padding:9px 11px; font-size:12px; display:none;
+       border-left:3px solid var(--rose); background:rgba(251,113,133,.1); color:#ffc9d1}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 44 44" aria-hidden="true">
+        <defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#22d3ee"/><stop offset="55%" stop-color="#a3e635"/>
+          <stop offset="100%" stop-color="#fbbf24"/></linearGradient></defs>
+        <path d="M22 2 L39 11.5 V30.5 L22 40 L5 30.5 V11.5 Z" fill="none"
+              stroke="url(#lg1)" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M24.8 9.5 L14.6 23.2 h6.1 l-2.2 9.3 L28.8 18.6 h-6.1 z" fill="url(#lg1)"/>
+        <circle cx="22" cy="2" r="2.4" fill="#22d3ee"/>
+        <circle cx="39" cy="30.5" r="2.4" fill="#a3e635"/>
+        <circle cx="5" cy="30.5" r="2.4" fill="#fbbf24"/>
+      </svg>
+      <h1>JTech <span>Grid Control</span></h1>
+      <p class="sub">OCPP 1.6J</p>
+    </div>
+
+    <label for="u">Username</label>
+    <input id="u" autocomplete="username" autofocus>
+
+    <label for="p">Password</label>
+    <input id="p" type="password" autocomplete="current-password">
+
+    <label class="remember" for="remember">
+      <input id="remember" type="checkbox"> Stay signed in for 30 days
+    </label>
+
+    <button id="go">Sign in</button>
+    <div id="err" role="alert"></div>
+    <p class="buildline">build <code id="build">…</code></p>
+  </div>
+
+<script>
+const err = document.getElementById('err');
+const btn = document.getElementById('go');
+
+async function signIn(){
+  err.style.display = 'none';
+  btn.disabled = true;
+  try{
+    const r = await fetch('/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        username: document.getElementById('u').value,
+        password: document.getElementById('p').value,
+        remember: document.getElementById('remember').checked
+      })
+    });
+    if(r.ok){ location.href = '/'; return; }
+    const d = await r.json().catch(()=>({}));
+    err.textContent = d.detail || 'Sign-in failed.';
+    err.style.display = 'block';
+    document.getElementById('p').value = '';
+    document.getElementById('p').focus();
+  }catch(e){
+    err.textContent = 'Cannot reach the server.';
+    err.style.display = 'block';
+  }
+  btn.disabled = false;
+}
+
+fetch('/version').then(r => r.json()).then(d => {
+  document.getElementById('build').textContent = d.build;
+  if(d.tls === false && location.protocol === 'http:'){
+    // Harmless on its own; fatal if OCPP_COOKIE_SECURE is also 1.
+    document.getElementById('build').textContent = d.build + ' · http';
+  }
+}).catch(() => document.getElementById('build').textContent = 'unknown');
+
+btn.addEventListener('click', signIn);
+document.addEventListener('keydown', e => { if(e.key === 'Enter') signIn(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+# Settings live in .env, which upgrades never overwrite.
+# Copy env.example to .env and edit it once.
+
+services:
+  ocpp-cs:
+    build: .
+    # Bump this on every upgrade — Container Manager reuses an image whose tag
+    # already exists, so without a change nothing rebuilds.
+    image: jtech-grid-control:35
+    container_name: jtech-grid-control
+    restart: unless-stopped
+    ports:
+      - "${OCPP_WS_PORT:-9081}:9000"    # charger connects to ws://<nas>:9081/
+      - "${OCPP_WEB_PORT:-8081}:8080"   # dashboard, https once a cert exists
+    environment:
+      TZ: "${TZ:-Africa/Johannesburg}"
+
+      # --- sign-in ---
+      OCPP_ADMIN_USER: "${OCPP_ADMIN_USER:-admin}"
+      OCPP_ADMIN_PASSWORD: "${OCPP_ADMIN_PASSWORD:-}"
+
+      # --- https ---
+      OCPP_COOKIE_SECURE: "${OCPP_COOKIE_SECURE:-1}"
+      OCPP_AUTO_CERT: "${OCPP_AUTO_CERT:-1}"
+      OCPP_TRUST_PROXY: "${OCPP_TRUST_PROXY:-0}"
+      OCPP_TRUSTED_ORIGINS: "${OCPP_TRUSTED_ORIGINS:-}"
+
+      # --- charger ---
+      OCPP_ALLOWED_CHARGE_POINTS: "${OCPP_ALLOWED_CHARGE_POINTS:-}"
+      # OCPP_AUTHORIZATION_KEY: only with SecurityProfile 1 or 2 on the charger
+
+      # --- tariff ---
+      OCPP_PRICE_PER_KWH: "${OCPP_PRICE_PER_KWH:-3.55}"
+      OCPP_CURRENCY: "${OCPP_CURRENCY:-R}"
+      OCPP_BATTERY_KWH: "${OCPP_BATTERY_KWH:-60}"
+      OCPP_TARGET_SOC: "${OCPP_TARGET_SOC:-80}"
+
+      OCPP_STRICT_CSP: "${OCPP_STRICT_CSP:-1}"
+      # Record a session when the car reaches SOC (SuspendedEV) rather than when
+      # the cable is finally pulled. Set to 0 to record only at StopTransaction.
+      OCPP_FINALISE_ON_SUSPENDED_EV: "${OCPP_FINALISE_ON_SUSPENDED_EV:-1}"
+    volumes:
+      # A plain folder next to this file, so the data is visible in File Station,
+      # easy to back up, and survives deleting or renaming the project.
+      # Ownership is corrected automatically at startup.
+      - ./data:/app/data
+      # ONE-TIME RECOVERY of history from an older Docker volume. Uncomment
+      # both this line and the volumes block at the bottom, rebuild once, then
+      # comment them out again. See UPGRADE.md.
+      # - legacy:/app/legacy:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Uncomment together with the legacy mount above. "name" must match exactly what
+# Container Manager shows in its Volume tab.
+# volumes:
+#   legacy:
+#     external: true
+#     name: ocpp-cs_jtech-data

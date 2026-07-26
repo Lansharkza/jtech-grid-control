@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070b18">
+<meta name="mobile-web-app-capable" content="yes">
+<title>JTech Grid Control</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Grid Control">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{
+    --bg:#070b18; --panel:#0f172e; --panel-2:#0b1224; --line:#1e2a4a;
+    --ink:#e8eefc; --dim:#7d8db3;
+    --cyan:#22d3ee; --lime:#a3e635; --violet:#a78bfa; --amber:#fbbf24;
+    --rose:#fb7185; --sky:#38bdf8; --sun:#facc15;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+    --pad:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); font-family:var(--mono);
+    font-size:14px; line-height:1.5; overflow-x:hidden;
+    background-image:
+      radial-gradient(70ch 45ch at 0% -15%, rgba(34,211,238,.10), transparent 70%),
+      radial-gradient(60ch 45ch at 100% 0%, rgba(167,139,250,.10), transparent 70%);
+    background-attachment:fixed;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  header{
+    display:flex; align-items:center; gap:10px; padding:10px var(--pad);
+    border-bottom:1px solid var(--line); background:rgba(7,11,24,.9);
+    backdrop-filter:blur(8px); position:sticky; top:0; z-index:5;
+    padding-top:calc(10px + env(safe-area-inset-top));
+  }
+  .brand{display:flex; align-items:center; gap:9px; min-width:0}
+  .brand .mark{width:28px; height:28px; flex:none}
+  header h1{margin:0; font-size:14px; font-weight:700; white-space:nowrap;
+            overflow:hidden; text-overflow:ellipsis}
+  header h1 span{color:var(--dim); font-weight:400}
+  .spacer{flex:1}
+  .pill{font-size:10px; padding:3px 8px; border:1px solid var(--line); border-radius:99px; color:var(--dim)}
+  .pill.live{color:var(--lime); border-color:rgba(163,230,53,.4); background:rgba(163,230,53,.08)}
+  .pill.down{color:var(--rose); border-color:rgba(251,113,133,.4); background:rgba(251,113,133,.08)}
+  main{padding:var(--pad); display:grid; gap:var(--pad); max-width:1180px; margin:0 auto}
+
+  .card{border:1px solid var(--line); background:var(--panel)}
+  .card>h2{margin:0; padding:9px 12px 9px 14px; border-bottom:1px solid var(--line);
+           font-weight:700; font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+           color:var(--h,var(--dim)); position:relative;
+           background:linear-gradient(90deg, color-mix(in srgb, var(--h,#334) 12%, transparent), transparent 60%)}
+  .card>h2::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+                   background:var(--h,var(--line))}
+  .card>.body{padding:12px}
+
+  /* ---- gauges: 2 x 2 on mobile, 4 across on wide screens ---- */
+  .gauges{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start}
+  @media (min-width:900px){ .gauges{grid-template-columns:repeat(4,1fr)} }
+  .gauge{position:relative; width:100%; max-width:190px; aspect-ratio:1 / 1;
+         margin:0 auto; min-width:0}
+  .gauge svg{width:100%; height:100%; transform:rotate(-90deg); display:block}
+  .gauge .mid{position:absolute; inset:0; display:grid; place-content:center;
+              text-align:center; padding:8px; overflow:hidden}
+  .gauge .val{font-size:clamp(20px,6.4vw,30px); font-weight:700; letter-spacing:-.02em;
+              line-height:1.05; white-space:nowrap}
+  .gauge .unit{font-size:9px; color:var(--dim); letter-spacing:.14em; text-transform:uppercase; margin-top:3px}
+  .gauge .of{font-size:9px; color:var(--dim); margin-top:1px}
+
+  .socbar{margin-top:16px}
+  .socbar-head{display:flex; justify-content:space-between; align-items:baseline;
+               font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--dim)}
+  .socbar-head span:last-child{font-size:20px; font-weight:700; letter-spacing:-.01em;
+                               text-transform:none; color:var(--violet)}
+  .socbar-track{position:relative; height:26px; margin-top:6px; background:#0a1020;
+                border:1px solid var(--line); overflow:hidden}
+  .socbar-fill{height:100%; width:0;
+               background:linear-gradient(90deg, #ddd6fe 0%, #a78bfa 45%, #6d28d9 100%);
+               transition:width .5s ease}
+  .socbar-target{position:absolute; top:0; bottom:0; width:2px; background:var(--lime); left:80%}
+  .socbar-target span{position:absolute; top:-1px; left:5px; font-size:8px; color:var(--lime);
+                      letter-spacing:.12em; text-transform:uppercase; white-space:nowrap}
+  .socbar-foot{display:flex; justify-content:space-between; margin-top:4px;
+               font-size:9px; color:var(--dim)}
+  .sessionbar{display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; margin-top:12px;
+              padding:12px; background:var(--panel-2); border:1px solid var(--line);
+              border-left:3px solid var(--cyan)}
+  @media (min-width:700px){ .sessionbar{grid-template-columns:auto auto auto 1fr} }
+  .sessionbar .timer{font-size:clamp(26px,8vw,32px); font-weight:700; color:var(--cyan); line-height:1}
+  .meta{font-size:11px; color:var(--dim)}
+  .meta b{color:var(--ink); font-weight:600}
+
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:9px; margin-top:12px}
+  .tile{padding:10px 11px; background:var(--panel-2); border:1px solid var(--line);
+        border-top:2px solid var(--t,var(--line))}
+  .tile .k{font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim)}
+  .tile .v{font-size:20px; font-weight:600; margin-top:2px; color:var(--t,var(--ink))}
+  .tile .u{font-size:10px; color:var(--dim); font-weight:400}
+
+  #chart{width:100%; height:150px; display:block; touch-action:pan-y}
+  .chart-empty{color:var(--dim); font-size:12px; padding:22px 0; text-align:center}
+
+  .week{display:grid; grid-template-columns:repeat(2,1fr); gap:9px}
+  @media (min-width:640px){ .week{grid-template-columns:repeat(5,1fr)} }
+  .wk{padding:11px 12px; background:var(--panel-2); border:1px solid var(--line);
+      border-left:3px solid var(--w,var(--line))}
+  .wk-k{font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim)}
+  .wk-v{font-size:clamp(17px,5vw,22px); font-weight:700; margin-top:3px; color:var(--w,var(--ink))}
+
+  .range{display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin-bottom:4px}
+  .rangebtn{padding:6px 11px; font-size:11px; background:var(--panel-2);
+            border:1px solid var(--line); color:var(--dim); cursor:pointer;
+            border-radius:3px; min-height:auto}
+  .rangebtn[aria-pressed="true"]{color:var(--ink); border-color:var(--violet);
+            background:color-mix(in srgb, var(--violet) 16%, transparent)}
+  .range-custom{display:flex; gap:5px; align-items:center; margin-left:auto}
+  .range-custom input[type="date"]{padding:5px 7px; font-size:11px; width:auto;
+            background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
+            color-scheme:dark}
+  .range-dash{color:var(--dim); font-size:11px}
+  .graph-block{margin-bottom:18px}
+  .graph-head{font-size:12px; color:var(--dim); margin-bottom:8px}
+  .graph-total{display:block; font-size:18px; font-weight:700; margin-top:2px}
+  .daychart{width:100%; height:190px; display:block; overflow:visible}
+  .daychart .grid{stroke:#1a2440; stroke-width:1}
+  .daychart .ytick{fill:var(--dim); font-size:11px}
+  .daychart .xtick{fill:var(--dim); font-size:11px}
+  .daychart .chart-none{fill:var(--dim); font-size:13px}
+  .daychart .g-energy{fill:url(#gradEnergy)}
+  .daychart .g-cost{fill:url(#gradCost)}
+  .monthnav{display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:14px}
+  .navarrow{width:34px; height:34px; padding:0; font-size:20px; line-height:1;
+            background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
+            border-radius:50%; cursor:pointer; min-height:auto}
+  .navarrow:hover{border-color:var(--indigo)}
+  .monthlabel{font-size:15px; font-weight:600; color:var(--sky); min-width:150px; text-align:center}
+  .usage-totals{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:14px 12px;
+                background:var(--panel-2); border:1px solid var(--line); border-radius:6px;
+                margin-bottom:14px}
+  .ut{text-align:center}
+  .ut-k{font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim)}
+  .ut-v{font-size:clamp(15px,4.5vw,19px); font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums}
+  .usage-list{display:flex; flex-direction:column}
+  .urow{display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px;
+        padding:14px 4px; border-bottom:1px solid #17203a}
+  .urow:last-child{border-bottom:0}
+  .u-energy{font-size:clamp(17px,5vw,21px); font-weight:700; white-space:nowrap}
+  .u-unit{font-size:12px; font-weight:400; color:var(--dim)}
+  .u-mid{text-align:center; min-width:0}
+  .u-dur{font-size:13px; color:var(--ink); font-variant-numeric:tabular-nums}
+  .u-when{font-size:11px; color:var(--dim); margin-top:2px}
+  .u-cost{font-size:14px; font-weight:700; padding:6px 12px; border-radius:14px;
+          background:color-mix(in srgb, var(--sky) 15%, transparent); color:var(--sky);
+          white-space:nowrap}
+  .pager{display:flex; justify-content:space-between; align-items:center; margin-top:12px}
+  .pager-info{font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums}
+  .daytable{width:100%; min-width:0; margin-top:14px; border-collapse:collapse; font-size:12px}
+  .daytable th{font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim);
+               text-align:right; padding:6px 8px; border-bottom:1px solid var(--line)}
+  .daytable th:first-child{text-align:left}
+  .daytable td{padding:9px 8px; text-align:right; border-bottom:1px solid #17203a;
+               font-variant-numeric:tabular-nums}
+  .daytable td:first-child{text-align:left; color:var(--ink)}
+  .daytable td .sub{display:block; font-size:9px; color:var(--dim); letter-spacing:.04em}
+  .daytable .c-time{color:var(--cyan)}
+  .daytable .c-kwh{color:var(--violet)}
+  .daytable .c-cost{color:var(--sun)}
+  .daytable tr.today td:first-child{border-left:2px solid var(--lime); padding-left:6px}
+  .daytable tr.blank td{color:var(--dim)}
+  .daytable tfoot td{border-top:1px solid var(--line); border-bottom:0; font-weight:700;
+                     padding-top:11px}
+
+  .strip{display:grid; grid-template-columns:1fr; gap:9px}
+  @media (min-width:600px){ .strip{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))} }
+  .conn{padding:11px 12px; background:var(--panel-2); border:1px solid var(--line);
+        border-left:3px solid var(--c,var(--dim))}
+  .conn .n{font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim)}
+  .conn .s{font-size:18px; margin-top:2px; color:var(--c,var(--ink))}
+  .conn .m{font-size:11px; color:var(--dim); margin-top:4px}
+
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  @media (min-width:700px){ .grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))} }
+  .grid .wide{grid-column:1 / -1}
+  label{display:block; font-size:9px; letter-spacing:.14em; text-transform:uppercase;
+        color:var(--dim); margin-bottom:4px}
+  input,select{width:100%; padding:11px 10px; background:#080d1c; color:var(--ink);
+               border:1px solid var(--line); font-family:inherit; font-size:16px}
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--cyan); outline-offset:1px}
+  input[readonly]{color:var(--dim)}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px}
+  @media (min-width:700px){ .row{display:flex; flex-wrap:wrap} }
+  button{padding:12px 14px; background:#16203c; color:var(--ink); border:1px solid var(--line);
+         font-family:inherit; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+         cursor:pointer; min-height:44px}
+  button:active{transform:translateY(1px)}
+  button.go{background:linear-gradient(90deg,var(--lime),#65d94a); color:#06210a; border:0; font-weight:700}
+  button.halt{background:linear-gradient(90deg,var(--rose),#e8506b); color:#2a0710; border:0; font-weight:700}
+  button.alt{border-color:rgba(34,211,238,.4); color:var(--cyan)}
+  button[disabled]{opacity:.45}
+
+  .modes{display:grid; grid-template-columns:1fr 1fr; gap:9px}
+  @media (min-width:800px){ .modes{grid-template-columns:repeat(4,1fr)} }
+  .mode{padding:12px 11px; text-align:left; background:var(--panel-2); border:1px solid var(--line);
+        border-top:2px solid var(--m,var(--line)); color:var(--ink); text-transform:none;
+        letter-spacing:0; font-family:inherit}
+  .mode[aria-pressed="true"]{background:#16203c; box-shadow:inset 0 0 0 1px var(--m)}
+  .mode .t{font-size:13px; font-weight:700; color:var(--m,var(--ink))}
+  .mode .d{font-size:10px; color:var(--dim); margin-top:3px; line-height:1.4; text-transform:none}
+  .mode .badge{font-size:8px; letter-spacing:.14em; text-transform:uppercase; color:var(--m);
+               display:none; margin-top:5px}
+  .mode[aria-pressed="true"] .badge{display:block}
+
+  .scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  table{width:100%; border-collapse:collapse; font-size:11px; min-width:420px}
+  th,td{text-align:left; padding:6px 7px; border-bottom:1px solid #17203a; vertical-align:top}
+  th{color:var(--dim); font-size:9px; letter-spacing:.14em; text-transform:uppercase}
+  td.detail{color:var(--dim); word-break:break-word}
+  .log-wrap{max-height:300px; overflow:auto}
+  .empty{color:var(--dim); font-size:12px}
+  .note{font-size:11px; color:var(--dim); margin-top:10px; line-height:1.5}
+
+  .mismatch{padding:12px 14px; background:rgba(251,113,133,.12); color:#ffd4da;
+            border:1px solid var(--rose); border-left-width:3px; font-size:12px; line-height:1.5}
+  footer{max-width:1180px; margin:0 auto; padding:16px var(--pad) 30px; display:flex; gap:12px;
+         flex-wrap:wrap; align-items:center; font-size:10px; color:var(--dim);
+         border-top:1px solid var(--line)}
+  footer .dot{width:6px; height:6px; border-radius:99px; background:var(--lime); flex:none}
+  footer code{color:#9fb0d6}
+  #toast{position:fixed; left:var(--pad); right:var(--pad); bottom:calc(14px + env(safe-area-inset-bottom));
+         padding:12px 14px; z-index:20; background:var(--panel); border:1px solid var(--line);
+         border-left:3px solid var(--cyan); font-size:12px; display:none}
+  @media (min-width:700px){ #toast{left:auto; max-width:360px} }
+  #toast.bad{border-left-color:var(--rose)}
+  /* CSP blocks inline style attributes, so every accent colour is a class. */
+  .h-cyan{--h:var(--cyan)}   .h-lime{--h:var(--lime)}     .h-sky{--h:var(--sky)}
+  .h-violet{--h:var(--violet)} .h-sun{--h:var(--sun)}     .h-orange{--h:#fb923c}
+  .h-rose{--h:var(--rose)}   .h-indigo{--h:#818cf8}       .h-slate{--h:#94a3b8}
+
+  .t-cyan{--t:var(--cyan)}   .t-lime{--t:var(--lime)}     .t-sky{--t:var(--sky)}
+  .t-violet{--t:var(--violet)} .t-amber{--t:var(--amber)}
+
+  .w-cyan{--w:var(--cyan)}   .w-lime{--w:var(--lime)}     .w-violet{--w:var(--violet)}
+  .w-sun{--w:var(--sun)}     .w-sky{--w:var(--sky)}
+
+  .m-sky{--m:var(--sky)}     .m-lime{--m:var(--lime)}     .m-amber{--m:var(--amber)}
+  .m-violet{--m:var(--violet)} .m-dim{--m:var(--dim)}     .m-cyan{--m:var(--cyan)}
+
+  .c-charging{--c:var(--lime)}      .c-waiting{--c:var(--amber)}
+  .c-fault{--c:var(--rose)}         .c-available{--c:var(--sky)}
+  .c-reserved{--c:var(--violet)}    .c-idle{--c:var(--dim)}
+
+  .cfg-yes{color:var(--lime)}  .cfg-no{color:var(--dim)}
+  .sel-compact{width:auto; padding:7px; font-size:12px}
+  .btn-compact{padding:8px 10px; min-height:auto}
+  .mt16{margin-top:16px}
+  .modes-3{grid-template-columns:1fr 1fr 1fr}
+  .txt-rose{color:var(--rose)}
+  .gauge circle{transition:stroke-dashoffset .35s linear, stroke .35s linear}
+  @media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 44 44" aria-hidden="true">
+        <defs><linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#22d3ee"/><stop offset="55%" stop-color="#a3e635"/>
+          <stop offset="100%" stop-color="#fbbf24"/></linearGradient></defs>
+        <path d="M22 2 L39 11.5 V30.5 L22 40 L5 30.5 V11.5 Z" fill="none"
+              stroke="url(#lg2)" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M24.8 9.5 L14.6 23.2 h6.1 l-2.2 9.3 L28.8 18.6 h-6.1 z" fill="url(#lg2)"/>
+        <circle cx="22" cy="2" r="2.4" fill="#22d3ee"/>
+        <circle cx="39" cy="30.5" r="2.4" fill="#a3e635"/>
+        <circle cx="5" cy="30.5" r="2.4" fill="#fbbf24"/>
+      </svg>
+    <h1>JTech <span>Grid Control</span></h1>
+  </div>
+  <span class="spacer"></span>
+  <span class="pill" id="link">connecting</span>
+  <select id="cp" class="sel-compact"></select>
+  <button data-act="signOut" class="btn-compact">Exit</button>
+</header>
+
+<main>
+  <svg width="0" height="0" aria-hidden="true" class="svg-defs">
+    <defs>
+      <linearGradient id="gradEnergy" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4ade80"/>
+        <stop offset="100%" stop-color="#166534"/>
+      </linearGradient>
+      <linearGradient id="gradCost" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#67e8f9"/>
+        <stop offset="100%" stop-color="#0e7490"/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <div class="card">
+    <h2 id="heroTitle" class="h-cyan">Live session</h2>
+    <div class="body">
+      <div class="gauges">
+        <div class="gauge">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#16203c" stroke-width="10"/>
+            <circle id="arcAmps" cx="60" cy="60" r="52" fill="none" stroke="var(--lime)"
+                    stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7"
+                    stroke-dashoffset="326.7"/>
+          </svg>
+          <div class="mid"><div class="val" id="vAmps">—</div>
+            <div class="unit">amps</div><div class="of" id="ofAmps">—</div></div>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#16203c" stroke-width="10"/>
+            <circle id="arcKw" cx="60" cy="60" r="52" fill="none" stroke="var(--cyan)"
+                    stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7"
+                    stroke-dashoffset="326.7"/>
+          </svg>
+          <div class="mid"><div class="val" id="vKw">—</div>
+            <div class="unit">kilowatts</div><div class="of" id="ofKw">—</div></div>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#16203c" stroke-width="10"/>
+            <circle id="arcKwh" cx="60" cy="60" r="52" fill="none" stroke="var(--violet)"
+                    stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7"
+                    stroke-dashoffset="326.7"/>
+          </svg>
+          <div class="mid"><div class="val" id="vKwh">—</div>
+            <div class="unit">kWh session</div><div class="of" id="ofKwh">—</div></div>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#16203c" stroke-width="10"/>
+            <circle id="arcCost" cx="60" cy="60" r="52" fill="none" stroke="var(--sun)"
+                    stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7"
+                    stroke-dashoffset="326.7"/>
+          </svg>
+          <div class="mid"><div class="val" id="vCost">—</div>
+            <div class="unit">session cost</div><div class="of" id="ofCost">—</div></div>
+        </div>
+      </div>
+
+      <div class="socbar">
+        <div class="socbar-head">
+          <span>State of charge</span>
+          <span id="socReadout">—</span>
+        </div>
+        <div class="socbar-track" id="socTrack">
+          <div class="socbar-fill" id="socFill"></div>
+          <div class="socbar-target" id="socTarget"><span>target</span></div>
+        </div>
+        <div class="socbar-foot"><span>0%</span><span id="socNote">set SOC at plug-in</span><span>100%</span></div>
+      </div>
+
+      <div class="sessionbar">
+        <div><div class="timer" id="gTimer">--:--:--</div><div class="meta">duration</div></div>
+        <div class="meta">state <b id="gState">idle</b><br>started <b id="gStart">—</b></div>
+        <div class="meta">tag <b id="gTag">—</b><br>txn <b id="gTxn">—</b></div>
+        <div class="meta">mode <b id="gMode">—</b><br>cost <b id="gCost">—</b></div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile t-sky"><div class="k">Voltage</div>
+          <div class="v"><span id="tVolts">—</span> <span class="u">V</span></div></div>
+        <div class="tile t-amber"><div class="k">Temperature</div>
+          <div class="v"><span id="tTemp">—</span> <span class="u">°C</span></div></div>
+        <div class="tile t-lime"><div class="k">Current offered</div>
+          <div class="v"><span id="tOffered">—</span> <span class="u">A</span></div></div>
+        <div class="tile t-violet"><div class="k">Session energy</div>
+          <div class="v"><span id="tKwh">—</span> <span class="u">kWh</span></div></div>
+        <div class="tile t-lime"><div class="k">To target</div>
+          <div class="v"><span id="tToGo">—</span> <span class="u">kWh</span></div></div>
+        <div class="tile"><div class="k">Lifetime meter</div>
+          <div class="v"><span id="tTotal">—</span> <span class="u">kWh</span></div></div>
+        <div class="tile t-cyan"><div class="k">Tariff</div>
+          <div class="v"><span id="tPrice">—</span> <span class="u">/kWh</span></div></div>
+        <div class="tile t-violet"><div class="k">Session cost</div>
+          <div class="v" id="tCost">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-lime">Connectors</h2>
+    <div class="body"><div class="strip" id="strip"><span class="empty">Waiting for a charger.</span></div></div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-sky">Power draw</h2>
+    <div class="body">
+      <svg id="chart" viewBox="0 0 600 150" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="chart-empty" id="chartEmpty">No samples yet.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-violet" id="histTitle">Last 7 days</h2>
+    <div class="body">
+      <div class="range">
+        <button class="rangebtn" data-act="range7" aria-pressed="true">7 days</button>
+        <button class="rangebtn" data-act="range30" aria-pressed="false">30 days</button>
+        <button class="rangebtn" data-act="rangeMonth" aria-pressed="false">This month</button>
+        <span class="range-custom">
+          <input id="rangeStart" type="date" aria-label="Start date">
+          <span class="range-dash">→</span>
+          <input id="rangeEnd" type="date" aria-label="End date">
+          <button class="rangebtn" data-act="rangeCustom">Apply</button>
+        </span>
+      </div>
+      <div class="week">
+        <div class="wk w-cyan">
+          <div class="wk-k">Charge time</div><div class="wk-v" id="wTime">—</div></div>
+        <div class="wk w-lime">
+          <div class="wk-k">Peak draw</div><div class="wk-v" id="wPeak">—</div></div>
+        <div class="wk w-violet">
+          <div class="wk-k">Energy</div><div class="wk-v" id="wKwh">—</div></div>
+        <div class="wk w-sun">
+          <div class="wk-k">Cost</div><div class="wk-v" id="wCost">—</div></div>
+        <div class="wk w-sky">
+          <div class="wk-k">Sessions</div><div class="wk-v" id="wCount">—</div></div>
+      </div>
+      <table class="daytable" id="days"></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-indigo">Usage</h2>
+    <div class="body">
+      <div class="monthnav">
+        <button class="navarrow" data-act="monthPrev" aria-label="Previous month">‹</button>
+        <span id="monthLabel" class="monthlabel">—</span>
+        <button class="navarrow" data-act="monthNext" aria-label="Next month">›</button>
+      </div>
+      <div class="usage-totals">
+        <div class="ut"><div class="ut-k">Energy</div><div class="ut-v c-kwh" id="uEnergy">—</div></div>
+        <div class="ut"><div class="ut-k">Time</div><div class="ut-v c-time" id="uTime">—</div></div>
+        <div class="ut"><div class="ut-k">Cost</div><div class="ut-v c-cost" id="uCost">—</div></div>
+      </div>
+      <div class="graph-block">
+        <div class="graph-head">Power consumption <span id="gEnergyTotal" class="graph-total c-kwh">—</span></div>
+        <svg id="energyChart" class="daychart" viewBox="0 0 620 200" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </div>
+      <div class="graph-block">
+        <div class="graph-head">Money spent <span id="gCostTotal" class="graph-total c-cost">—</span></div>
+        <svg id="costChart" class="daychart" viewBox="0 0 620 200" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </div>
+      <div id="usageList" class="usage-list"><div class="empty">—</div></div>
+      <div class="pager">
+        <button class="rangebtn" data-act="sessPrev">Newer</button>
+        <span id="sessRange" class="pager-info">—</span>
+        <button class="rangebtn" data-act="sessNext">Older</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-sun">Charging mode</h2>
+    <div class="body">
+      <div class="modes">
+        <button class="mode m-sky" aria-pressed="false" data-mode="regular"
+                data-act="setMode"><div class="t">Regular</div>
+          <div class="d">Grid power at the full limit.</div><div class="badge">● active</div></button>
+        <button class="mode m-lime" aria-pressed="false" data-mode="solar"
+                data-act="setMode"><div class="t">Solar only</div>
+          <div class="d">Surplus export only. Pauses when the sun goes in.</div><div class="badge">● active</div></button>
+        <button class="mode m-amber" aria-pressed="false" data-mode="eco"
+                data-act="setMode"><div class="t">Eco</div>
+          <div class="d">Surplus first, topped up from the grid.</div><div class="badge">● active</div></button>
+        <button class="mode m-violet" aria-pressed="false" data-mode="eco_plus"
+                data-act="setMode"><div class="t">Eco+</div>
+          <div class="d">Mostly surplus, minimal grid.</div><div class="badge">● active</div></button>
+      </div>
+      <div class="row">
+        <button data-act="readMode">Refresh mode</button>
+        <button data-act="solarOff">Solar off</button>
+      </div>
+      <div class="note" id="modeNote">Uses Teltonika's <code>Solar</code> and
+        <code>SolarCharging</code> keys, added in firmware 1.12.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-orange">Charging schedule</h2>
+    <div class="body">
+      <div class="grid">
+        <div><label for="schStart">Start</label><input id="schStart" type="time" value="22:00"></div>
+        <div><label for="schEnd">End</label><input id="schEnd" type="time" value="06:00"></div>
+        <div><label for="schAmps">Limit inside window (A)</label>
+          <input id="schAmps" type="number" value="32" min="6" max="32"></div>
+        <div><label for="schPhases">Phases</label>
+          <select id="schPhases"><option>1</option><option>3</option></select></div>
+      </div>
+      <div class="row">
+        <button class="go" data-act="setSchedule">Apply schedule</button>
+        <button class="halt" data-act="clearSchedule">Clear schedule</button>
+      </div>
+
+      <label class="mt16">Auto-start when the cable is plugged in</label>
+      <div class="modes modes-3">
+        <button class="mode m-dim" aria-pressed="false" data-auto="off"
+                data-act="setAutoStart"><div class="t">Off</div>
+          <div class="d">Press Start yourself.</div><div class="badge">● active</div></button>
+        <button class="mode m-lime" aria-pressed="false" data-auto="plugged"
+                data-act="setAutoStart"><div class="t">On plug-in</div>
+          <div class="d">Starts as soon as the cable is in.</div><div class="badge">● active</div></button>
+        <button class="mode m-cyan" aria-pressed="false" data-auto="schedule"
+                data-act="setAutoStart"><div class="t">In window</div>
+          <div class="d">Starts and stops with the schedule above.</div><div class="badge">● active</div></button>
+      </div>
+      <div class="note" id="schNote">
+        The schedule caps current outside the window, but OCPP cannot begin a
+        session on a timer — something has to start the transaction. That is what
+        auto-start below is for. Use both: the schedule enforces the window,
+        auto-start opens the session. Times are in <b id="schTz">the server's timezone</b>.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-rose">Control</h2>
+    <div class="body">
+      <div class="grid">
+        <div><label for="connectorId">Connector</label>
+          <input id="connectorId" type="number" value="1" min="1" readonly></div>
+        <div><label for="idTag">RFID tag</label><input id="idTag" value="DEMO"></div>
+        <div><label for="limitAmps">Current limit (A)</label>
+          <input id="limitAmps" type="number" value="32" min="6" max="32"></div>
+        <div><label for="phases">Phases</label>
+          <select id="phases"><option>1</option><option>3</option></select></div>
+        <div><label for="batteryKwh">Battery (kWh)</label>
+          <input id="batteryKwh" type="number" value="60" min="1" max="300" step="0.5"
+                 data-change="saveVehicle"></div>
+        <div><label for="startSoc">SOC at plug-in (%)</label>
+          <input id="startSoc" type="number" value="" min="0" max="100" placeholder="e.g. 42"
+                 data-change="saveVehicle"></div>
+        <div><label for="targetSoc">Target SOC (%)</label>
+          <input id="targetSoc" type="number" value="80" min="1" max="100"
+                 data-change="saveVehicle"></div>
+        <div><label for="priceKwh">Tariff per kWh</label>
+          <input id="priceKwh" type="number" value="3.55" min="0" step="0.01"
+                 data-change="savePrice"></div>
+        <div class="wide"><label for="purpose">Profile purpose</label>
+          <select id="purpose"><option>TxDefaultProfile</option><option>TxProfile</option></select></div>
+      </div>
+      <div class="row">
+        <button class="go" data-act="startCharge">Start</button>
+        <button class="halt" data-act="stopCharge">Stop</button>
+        <button class="alt" data-act="applyLimit">Apply limit</button>
+        <button data-act="clearLimit">Clear limit</button>
+        <button data-act="checkSchedule">Verify limit</button>
+      </div>
+      <div class="row">
+        <button data-act="availability" data-arg="Inoperative">Take offline</button>
+        <button data-act="availability" data-arg="Operative">Bring online</button>
+        <button data-act="reset" data-arg="Soft">Soft reset</button>
+        <button data-act="reset" data-arg="Hard">Hard reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-indigo">Configuration</h2>
+    <div class="body">
+      <div class="grid">
+        <div><label for="cfgKey">Key</label><input id="cfgKey" placeholder="MeterValueSampleInterval"></div>
+        <div><label for="cfgValue">Value</label><input id="cfgValue" placeholder="5"></div>
+      </div>
+      <div class="row">
+        <button data-act="readConfig">Read all keys</button>
+        <button data-act="writeConfig">Write key</button>
+        <button class="alt" data-act="applyRecommended">Apply recommended</button>
+        <button data-act="showMeasurands">Measurands seen</button>
+        <button data-act="backup">Download backup</button>
+        <button data-act="restore">Restore backup</button>
+      </div>
+      <div class="scroll"><table id="cfgTable"></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="h-slate">Message log</h2>
+    <div class="body"><div class="log-wrap scroll"><table id="log"></table></div></div>
+  </div>
+</main>
+
+<footer>
+  <span class="dot" id="fDot"></span>
+  <span>JTech Grid Control</span>
+  <span>build <code id="fBuild">…</code></span>
+  <span>charger <code id="fFw">—</code></span>
+  <span>uptime <code id="fUp">—</code></span>
+  <span id="fPersist"></span>
+</footer>
+
+<div id="toast"></div>
+<script>
+const PAGE_BUILD = '2026-07-26-v31';
+let current = null, state = null, tick = null;
+let settings = {pricePerKwh:3.55, currency:'R', batteryKwh:60, targetSoc:80,
+                startSoc:null, chargingEfficiency:0.9, autoStart:'off'};
+
+const $ = id => document.getElementById(id);
+
+/* Everything the charger sends — status, error codes, configuration keys and
+   values, RFID tags, vendor DataTransfer payloads, even the charge point id —
+   is untrusted input that ends up in the DOM. Escape it all. */
+const esc = v => String(v ?? '').replace(/[&<>"']/g,
+  ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const n1 = v => v == null ? '—' : (Math.round(v*10)/10).toFixed(1);
+const n2 = v => v == null ? '—' : (Math.round(v*100)/100).toFixed(2);
+const money = v => v == null ? '—' : `${esc(settings.currency)}${(Math.round(v*100)/100).toFixed(2)}`;
+
+function toast(msg, bad){
+  const t = $('toast');
+  t.textContent = msg; t.className = bad ? 'bad' : ''; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(()=> t.style.display='none', 5000);
+}
+
+async function api(path, options){
+  const r = await fetch(path, options);
+  if(r.status === 401){ location.href = '/login'; throw new Error('signed out'); }
+  return r;
+}
+
+async function post(path, body){
+  if(!current) return toast('No charger connected.', true);
+  const r = await api(`/api/chargers/${encodeURIComponent(current)}/${path}`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json().catch(()=>({}));
+  toast(r.ok ? `${path}: ${JSON.stringify(d).slice(0,120)}` : `${path} — ${d.detail || r.status}`, !r.ok);
+  refresh();
+  return d;
+}
+
+async function signOut(){ await fetch('/api/auth/logout',{method:'POST'}); location.href='/login'; }
+
+const connectorId = () => Number($('connectorId').value || 1);
+function startCharge(){ post('start', {connectorId: connectorId(), idTag: $('idTag').value}); }
+function stopCharge(){
+  const s = state?.connectors?.[connectorId()]?.session;
+  if(!s) return toast('No session running.', true);
+  post('stop', {transactionId: s.transactionId});
+}
+function applyLimit(){
+  post('limit', {connectorId: connectorId(), limitAmps: Number($('limitAmps').value),
+                 numberPhases: Number($('phases').value), purpose: $('purpose').value});
+}
+
+/* ---------- tariff ---------- */
+async function loadSettings(){
+  try{
+    const loaded = await (await api('/api/settings')).json();
+    settings = Object.assign({}, settings, loaded);
+    $('priceKwh').value = settings.pricePerKwh;
+    $('batteryKwh').value = settings.batteryKwh ?? 60;
+    $('targetSoc').value = settings.targetSoc ?? 80;
+    if(settings.startSoc != null) $('startSoc').value = settings.startSoc;
+    markAutoStart(settings.autoStart || 'off');
+    if(settings.timezone) $('schTz').textContent = settings.timezone;
+    if(settings.schedule){
+      $('schStart').value = settings.schedule.start;
+      $('schEnd').value = settings.schedule.end;
+      $('schAmps').value = settings.schedule.limitAmps;
+      $('schNote').textContent =
+        `Active: ${settings.schedule.start}–${settings.schedule.end} at ${settings.schedule.limitAmps} A (${settings.schedule.timezone}).`;
+    }
+  }catch(e){}
+}
+
+async function setAutoStart(mode){
+  const r = await api('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({autoStart: mode})});
+  const body = await r.json().catch(()=>({}));
+  if(!r.ok){ return toast(body.detail || `Could not set auto-start (${r.status})`, true); }
+  settings = Object.assign({}, settings, body);
+  markAutoStart(settings.autoStart);
+  toast({off:'Auto-start off. Use the Start button.',
+         plugged:'Will start charging as soon as the cable is plugged in.',
+         schedule:'Will start and stop with the schedule window.'}[mode]);
+}
+
+function markAutoStart(mode){
+  document.querySelectorAll('[data-auto]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.auto === mode)));
+}
+
+async function saveVehicle(){
+  const body = {
+    batteryKwh: Number($('batteryKwh').value) || undefined,
+    targetSoc: Number($('targetSoc').value) || undefined
+  };
+  if($('startSoc').value !== '') body.startSoc = Number($('startSoc').value);
+  const r = await api('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)});
+  if(!r.ok){ const d = await r.json().catch(()=>({})); return toast(d.detail || 'Rejected', true); }
+  settings = Object.assign({}, settings, await r.json());
+  toast(`${settings.batteryKwh} kWh battery, target ${settings.targetSoc}%`
+        + (settings.startSoc != null ? `, from ${settings.startSoc}%` : ''));
+  refresh();
+}
+
+async function savePrice(){
+  const price = Number($('priceKwh').value);
+  const r = await api('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({pricePerKwh: price})});
+  settings = Object.assign({}, settings, await r.json());
+  toast(`Tariff set to ${money(settings.pricePerKwh)} per kWh.`);
+  refresh();
+}
+
+/* ---------- schedule ---------- */
+function hm(value){ const [h,m] = (value||'0:0').split(':').map(Number); return {h:h||0, m:m||0}; }
+
+async function setSchedule(){
+  const s = hm($('schStart').value), e = hm($('schEnd').value);
+  const d = await post('schedule', {
+    startHour:s.h, startMinute:s.m, endHour:e.h, endMinute:e.m,
+    limitAmps: Number($('schAmps').value), numberPhases: Number($('schPhases').value)});
+  if(d?.response?.status === 'Accepted'){
+    $('schNote').textContent = `Active: ${$('schStart').value}–${$('schEnd').value} at ${$('schAmps').value} A.`;
+  }else if(d?.response?.status){
+    $('schNote').textContent = `Charger answered ${d.response.status}. Some firmware rejects a 0 A period — `
+      + 'try 6 A as the outside-window limit, or use Take offline instead.';
+  }
+}
+
+async function clearSchedule(){
+  await post('schedule/clear', {});
+  $('schNote').textContent = 'No schedule set. The charger will charge whenever plugged in.';
+}
+
+/* ---------- modes ---------- */
+async function checkSchedule(){
+  if(!current) return toast('No charger connected.', true);
+  const d = await (await api(
+    `/api/chargers/${current}/composite-schedule?connector_id=${connectorId()}&duration=3600`)).json();
+  toast(`Charger reports: ${JSON.stringify(d.charging_schedule ?? d.status)}`.slice(0, 160));
+}
+
+async function setMode(mode){
+  const d = await post('mode', {mode});
+  if(d && d.mode) markMode(d.mode);
+  setTimeout(readMode, 800);
+}
+function markMode(mode){
+  document.querySelectorAll('[data-mode]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+}
+async function readMode(){
+  if(!current) return;
+  try{
+    const d = await (await api(`/api/chargers/${current}/mode`)).json();
+    if(d.supported === false){
+      $('modeNote').textContent = 'This charger does not expose the Solar keys. They need firmware 1.12 '
+        + 'or newer with solar charging commissioned.';
+      document.querySelectorAll('[data-mode]').forEach(b => b.disabled = true);
+      return;
+    }
+    markMode(d.mode);
+    $('modeNote').textContent = `Charger reports mode "${d.mode ?? 'unknown'}", solar feature `
+      + `${d.solarEnabled === '1' ? 'on' : 'off'}.`;
+  }catch(e){}
+}
+
+/* ---------- configuration ---------- */
+const RECOMMENDED = [
+  ['HeartbeatInterval','60'],
+  ['MeterValueSampleInterval','5'],
+  ['MeterValuesSampledData','Energy.Active.Import.Register,Power.Active.Import,Current.Import,Current.Offered,Voltage,Temperature'],
+  ['StopTxnSampledData','Energy.Active.Import.Register'],
+  ['ClockAlignedDataInterval','900'],
+  ['MeterValuesAlignedData','Energy.Active.Import.Register'],
+  ['AuthorizeRemoteTxRequests','0'],
+  ['ConnectionTimeOut','180'],
+  ['TransactionMessageAttempts','5'],
+  ['TransactionMessageRetryInterval','30'],
+  ['AuthorizationCacheEnabled','1'],
+  ['LocalAuthorizeOffline','1'],
+  ['AllowOfflineTxForUnknownId','1']
+];
+
+async function applyRecommended(){
+  if(!current) return toast('No charger connected.', true);
+  const rejected = []; let done = 0, i = 0;
+  for(const [key, value] of RECOMMENDED){
+    toast(`Writing ${++i} of ${RECOMMENDED.length}: ${key}`);
+    try{
+      const r = await api(`/api/chargers/${current}/configuration`, {method:'POST',
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify({key, value})});
+      const d = await r.json().catch(()=>({}));
+      if(d.status === 'Accepted' || d.status === 'RebootRequired') done++;
+      else rejected.push(`${key} (${d.status || '?'})`);
+    }catch(e){ rejected.push(`${key} (error)`); }
+    await new Promise(r => setTimeout(r, 450));
+  }
+  toast(rejected.length ? `${done}/${RECOMMENDED.length} written. Rejected: ${rejected.join(', ')}`
+                        : `All ${RECOMMENDED.length} keys written.`, rejected.length > 0);
+  readConfig();
+}
+
+async function readConfig(){
+  if(!current) return toast('No charger connected.', true);
+  const d = await (await api(`/api/chargers/${current}/configuration`)).json();
+  const keys = d.configuration_key || d.configurationKey || [];
+  $('cfgTable').innerHTML = '<tr><th>Key</th><th>Value</th><th>Writable</th></tr>' +
+    keys.map(k => `<tr><td>${esc(k.key)}</td><td>${esc(k.value ?? '')}</td>
+      <td class="${k.readonly?'cfg-no':'cfg-yes'}">${k.readonly?'no':'yes'}</td></tr>`).join('');
+  toast(`${keys.length} keys read.`);
+}
+
+async function downloadBackup(){
+  const d = await (await api('/api/backup')).json();
+  const blob = new Blob([JSON.stringify(d, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `grid-control-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`Saved ${d.sessions.length} sessions.`);
+}
+
+function restoreBackup(){
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.accept = 'application/json,.json';
+  picker.addEventListener('change', async () => {
+    const file = picker.files[0];
+    if(!file) return;
+    try{
+      const data = JSON.parse(await file.text());
+      const r = await api('/api/restore', {method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({sessions: data.sessions || [], settings: data.settings})});
+      const d = await r.json();
+      toast(r.ok ? `Restored ${d.added} sessions, ${d.total} total.`
+                 : `Restore failed: ${d.detail || r.status}`, !r.ok);
+      renderWeek(); loadSettings();
+    }catch(e){ toast('That file is not a valid backup.', true); }
+  });
+  picker.click();
+}
+
+async function showMeasurands(){
+  if(!current) return toast('No charger connected.', true);
+  const d = await (await api(`/api/chargers/${current}/measurands`)).json();
+  $('cfgTable').innerHTML = '<tr><th>Measurand actually received</th></tr>' +
+    (d.seen.length ? d.seen.map(m => `<tr><td>${esc(m)}</td></tr>`).join('')
+                   : '<tr><td>None yet — wait for a meter sample.</td></tr>');
+  toast(`${d.seen.length} measurands seen, ${d.vendorData.length} vendor messages.`);
+}
+
+function writeConfig(){ post('configuration', {key: $('cfgKey').value, value: $('cfgValue').value}); }
+
+/* ---------- gauges ---------- */
+const COLOURS = {Charging:'var(--lime)', Preparing:'var(--amber)', SuspendedEV:'var(--amber)',
+  SuspendedEVSE:'var(--amber)', Finishing:'var(--amber)', Reserved:'var(--violet)',
+  Available:'var(--sky)', Faulted:'var(--rose)', Unavailable:'var(--rose)'};
+
+/* Class equivalents, because CSP forbids inline style attributes. */
+const STATUS_CLASS = {Charging:'c-charging', Preparing:'c-waiting', SuspendedEV:'c-waiting',
+  SuspendedEVSE:'c-waiting', Finishing:'c-waiting', Reserved:'c-reserved',
+  Available:'c-available', Faulted:'c-fault', Unavailable:'c-fault'};
+
+const C = 2 * Math.PI * 52;
+
+/* low -> high colour grading. Each ramp is a list of [stop, r,g,b]. */
+const RAMPS = {
+  power: [[0, 34,211,238], [0.5, 163,230,53], [0.8, 251,191,36], [1, 251,113,133]],
+  fill:  [[0, 124,58,237], [0.5, 167,139,250], [1, 163,230,53]],
+  sun:   [[0, 148,120,40], [0.5, 250,204,21], [1, 253,224,71]],
+  cost:  [[0, 56,189,248], [0.5, 250,204,21], [0.85, 251,146,60], [1, 251,113,133]],
+  soc:   [[0, 221,214,254], [0.5, 167,139,250], [1, 91,33,182]]
+};
+
+function ramp(name, frac){
+  const stops = RAMPS[name]; frac = Math.max(0, Math.min(1, frac || 0));
+  for(let i = 1; i < stops.length; i++){
+    if(frac <= stops[i][0]){
+      const [p0,r0,g0,b0] = stops[i-1], [p1,r1,g1,b1] = stops[i];
+      const t = (frac - p0) / (p1 - p0 || 1);
+      return `rgb(${Math.round(r0+(r1-r0)*t)},${Math.round(g0+(g1-g0)*t)},${Math.round(b0+(b1-b0)*t)})`;
+    }
+  }
+  const last = stops[stops.length-1];
+  return `rgb(${last[1]},${last[2]},${last[3]})`;
+}
+
+function setArc(id, frac, rampName){
+  const el = $(id); if(!el) return;
+  const f = Math.max(0, Math.min(1, frac || 0));
+  el.style.strokeDashoffset = C * (1 - f);
+  el.style.stroke = ramp(rampName, f);
+  const val = $(id.replace('arc','v'));
+  if(val) val.style.color = ramp(rampName, f);
+}
+
+function renderGauges(session, status){
+  const limitA = Number($('limitAmps').value) || 32;
+  const phases = Number($('phases').value) || 1;
+  const maxKw  = limitA * 230 * phases / 1000;
+
+  const amps = session?.currentA;
+  const kw   = session?.powerW == null ? null : session.powerW / 1000;
+  const kwh  = session?.energyWh == null ? null : session.energyWh / 1000;
+  const price = settings.pricePerKwh || 0;
+  const cost  = kwh == null ? null : kwh * price;
+  const soc   = session?.socPercent;
+  const targetSoc = session?.targetSoc || settings.targetSoc || 80;
+
+  // The cost ceiling is what it takes to reach target SOC from where we started,
+  // so it reflects the actual battery rather than a fixed kWh figure.
+  const battery = settings.batteryKwh || 0;
+  const startSoc = settings.startSoc;
+  const eff = settings.chargingEfficiency || 0.9;
+  const budgetKwh = (battery && startSoc != null)
+    ? battery * Math.max(0, targetSoc - startSoc) / 100 / eff : null;
+  const budget = budgetKwh == null ? null : budgetKwh * price;
+
+  // The kWh ring fills toward the energy needed to reach target SOC, falling
+  // back to 40 kWh when no starting SOC has been entered.
+  const kwhCeiling = budgetKwh || 40;
+
+  setArc('arcAmps', amps == null ? 0 : amps/limitA,    'power');
+  setArc('arcKw',   kw   == null ? 0 : kw/maxKw,       'power');
+  setArc('arcKwh',  kwh  == null ? 0 : kwh/kwhCeiling, 'fill');
+  setArc('arcCost', cost == null || !budget ? 0 : cost/budget, 'cost');
+
+  $('vAmps').textContent = n1(amps);
+  $('vKw').textContent   = n2(kw);
+  $('vKwh').textContent  = n2(kwh);
+  $('vCost').textContent = cost == null ? '—' : money(cost);
+  $('ofAmps').textContent = `limit ${limitA} A`;
+  $('ofKw').textContent   = `max ${n1(maxKw)} kW`;
+  $('ofKwh').textContent  = budgetKwh ? `of ${n1(budgetKwh)} to target` : 'of 40 default';
+  $('ofCost').textContent = budget ? `of ${money(budget)} to target` : `${money(price)}/kWh`;
+
+  renderSocBar(soc, targetSoc, startSoc, session);
+
+  $('tKwh').textContent  = n2(kwh);
+  $('tToGo').textContent = session?.energyToTargetKwh == null ? '—' : n2(session.energyToTargetKwh);
+
+  $('tCost').textContent = money(cost);
+  $('gCost').textContent = money(cost);
+  $('tPrice').textContent = money(settings.pricePerKwh);
+  $('gMode').textContent = session?.mode || state?.mode || '—';
+  $('gState').textContent = status || 'idle';
+  $('gState').style.color = COLOURS[status] || 'var(--dim)';
+  $('gTag').textContent = session?.idTag || '—';
+  $('gTxn').textContent = session?.transactionId ?? '—';
+  $('gStart').textContent = session?.startedAt ? new Date(session.startedAt).toLocaleTimeString() : '—';
+}
+
+function renderSocBar(soc, targetSoc, startSoc, session){
+  const fill = $('socFill'), marker = $('socTarget'), readout = $('socReadout');
+  marker.style.left = `${Math.max(0, Math.min(100, targetSoc))}%`;
+  if(soc == null){
+    fill.style.width = '0%';
+    readout.textContent = '—';
+    $('socNote').textContent = startSoc == null
+      ? 'enter SOC at plug-in under Control'
+      : 'waiting for the first meter reading';
+    return;
+  }
+  const pct = Math.max(0, Math.min(100, soc));
+  fill.style.width = `${pct}%`;
+  readout.textContent = `${n1(pct)}%`;
+  // Light at low charge, darkening as it fills toward the target.
+  const shade = Math.min(1, pct / (targetSoc || 100));
+  fill.style.background =
+    `linear-gradient(90deg, #ede9fe 0%, ${ramp('soc', shade * 0.6)} 55%, ${ramp('soc', shade)} 100%)`;
+  const remaining = session?.energyToTargetKwh;
+  $('socNote').textContent = pct >= targetSoc
+    ? `target ${n1(targetSoc)}% reached`
+    : (remaining != null ? `${n2(remaining)} kWh to ${n1(targetSoc)}%` : `target ${n1(targetSoc)}%`)
+      + (session?.socSource === 'estimated' ? ' · estimated' : ' · from vehicle');
+}
+
+/* ---------- power chart with a time axis ---------- */
+function renderChart(history){
+  const svg = $('chart'), empty = $('chartEmpty');
+  const pts = (history || []).filter(p => p.w != null);
+  if(pts.length < 2){ svg.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  const W = 600, H = 150, L = 6, R = 6, T = 10, B = 24;
+  const max = Math.max(...pts.map(p => p.w), 1000) * 1.15;
+  const x = i => L + i * (W-L-R) / (pts.length - 1);
+  const y = w => H - B - (w / max) * (H - B - T);
+  const line = pts.map((p,i) => `${x(i).toFixed(1)},${y(p.w).toFixed(1)}`).join(' ');
+
+  const ticks = Math.min(5, pts.length);
+  let axis = '';
+  for(let t = 0; t < ticks; t++){
+    const i = Math.round(t * (pts.length-1) / (ticks-1 || 1));
+    const label = new Date(pts[i].t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const anchor = t === 0 ? 'start' : t === ticks-1 ? 'end' : 'middle';
+    axis += `<line x1="${x(i)}" y1="${T}" x2="${x(i)}" y2="${H-B}" stroke="#17203a" stroke-width="1"/>
+      <text x="${x(i)}" y="${H-8}" fill="#7d8db3" font-size="10" font-family="monospace"
+            text-anchor="${anchor}">${label}</text>`;
+  }
+  svg.innerHTML = `
+    <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity=".45"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs>
+    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#1e2a4a" stroke-width="1"/>
+    ${axis}
+    <polygon points="${L},${H-B} ${line} ${W-R},${H-B}" fill="url(#fill)"/>
+    <polyline points="${line}" fill="none" stroke="#22d3ee" stroke-width="2"
+              stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <text x="${L}" y="${T+4}" fill="#7d8db3" font-size="10" font-family="monospace">
+      peak ${Math.round(Math.max(...pts.map(p=>p.w)))} W</text>`;
+}
+
+function hhmm(seconds){
+  if(!seconds) return '0h 00m';
+  const h = Math.floor(seconds/3600), m = Math.floor(seconds%3600/60);
+  return `${h}h ${String(m).padStart(2,'0')}m`;
+}
+
+// Current history range. null query means the default rolling 7 days.
+let histRange = {query: 'days=7', label: 'Last 7 days', totalLabel: '7-day total'};
+
+function setRangeButton(act){
+  document.querySelectorAll('.rangebtn[data-act^="range"]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.act === act)));
+}
+
+function range7(){ histRange = {query:'days=7', label:'Last 7 days', totalLabel:'7-day total'};
+  setRangeButton('range7'); renderWeek(); }
+function range30(){ histRange = {query:'days=30', label:'Last 30 days', totalLabel:'30-day total'};
+  setRangeButton('range30'); renderWeek(); }
+function rangeMonth(){
+  const now = new Date();
+  const first = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const today = now.toISOString().slice(0,10);
+  histRange = {query:`start=${first}&end=${today}`,
+               label: now.toLocaleDateString([], {month:'long', year:'numeric'}),
+               totalLabel:'Month total'};
+  setRangeButton('rangeMonth'); renderWeek();
+}
+function rangeCustom(){
+  const s = $('rangeStart').value, e = $('rangeEnd').value;
+  if(!s && !e) return toast('Pick a start or end date first.', true);
+  const parts = [];
+  if(s) parts.push('start=' + s);
+  if(e) parts.push('end=' + e);
+  histRange = {query: parts.join('&'),
+               label: `${s || '…'} → ${e || 'today'}`, totalLabel:'Range total'};
+  setRangeButton(null); renderWeek();
+}
+
+async function renderWeek(){
+  let d;
+  try{ d = await (await api('/api/history?' + histRange.query)).json(); }catch(e){ return; }
+  const t = d.totals;
+  $('histTitle').textContent = histRange.label;
+  $('wTime').textContent  = hhmm(t.durationSeconds);
+  $('wPeak').textContent  = t.peakW == null ? '—' : `${n2(t.peakW/1000)} kW`;
+  $('wKwh').textContent   = `${n2(t.energyWh/1000)} kWh`;
+  $('wCost').textContent  = money(t.cost);
+  $('wCount').textContent = t.sessions;
+
+  const today = new Date().toISOString().slice(0,10);
+  // Long ranges as a table would be unwieldy, so newest day first throughout.
+  const rows = d.daily.slice().reverse().map(x => {
+    const idle = !x.sessions;
+    const dt = new Date(x.date + 'T00:00:00');
+    return `<tr class="${idle ? 'blank' : ''}${x.date === today ? ' today' : ''}">
+      <td>${esc(x.label)}<span class="sub">${esc(dt.toLocaleDateString([], {day:'2-digit', month:'short'}))}</span></td>
+      <td class="${idle ? '' : 'c-time'}">${idle ? '—' : hhmm(x.durationSeconds)}
+        <span class="sub">${x.sessions || 0} session${x.sessions === 1 ? '' : 's'}</span></td>
+      <td class="${idle ? '' : 'c-kwh'}">${idle ? '—' : n2(x.energyWh/1000)}</td>
+      <td class="${idle ? '' : 'c-cost'}">${idle ? '—' : money(x.cost)}</td></tr>`;
+  }).join('');
+
+  $('days').innerHTML = `
+    <thead><tr><th>Day</th><th>Charge time</th><th>Energy kWh</th><th>Cost</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr>
+      <td>${esc(histRange.totalLabel)}</td>
+      <td class="c-time">${hhmm(t.durationSeconds)}</td>
+      <td class="c-kwh">${n2(t.energyWh/1000)}</td>
+      <td class="c-cost">${money(t.cost)}</td>
+    </tr></tfoot>`;
+}
+
+// --- Usage: every session in a chosen month, newest first ---
+let usageMonth = new Date();   // first of the shown month is derived from this
+usageMonth.setDate(1);
+let sessPage = 0;
+const SESS_PER = 50;
+
+function monthBounds(d){
+  const y = d.getFullYear(), m = d.getMonth();
+  const first = `${y}-${String(m+1).padStart(2,'0')}-01`;
+  const lastDay = new Date(y, m+1, 0).getDate();
+  const last = `${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  return {first, last};
+}
+
+function monthPrev(){ usageMonth.setMonth(usageMonth.getMonth()-1); sessPage = 0; renderUsage(); }
+function monthNext(){
+  const now = new Date();
+  // don't page past the current month
+  if(usageMonth.getFullYear() === now.getFullYear() && usageMonth.getMonth() >= now.getMonth()) return;
+  usageMonth.setMonth(usageMonth.getMonth()+1); sessPage = 0; renderUsage();
+}
+function sessPrev(){ if(sessPage > 0){ sessPage--; renderUsage(); } }
+function sessNext(){ sessPage++; renderUsage(); }
+
+// A per-day bar chart across a month, styled like the reference app: gridlines
+// with left-hand scale labels, day numbers on the x-axis, gradient bars.
+function drawDayChart(id, daily, valueOf, cls, fmt){
+  const svg = $(id);
+  const W = 620, H = 200, padL = 4, padB = 22, padT = 6;
+  const values = daily.map(valueOf);
+  const peak = Math.max(...values, 0);
+  if(peak <= 0){
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" class="chart-none" text-anchor="middle">No usage this month</text>`;
+    return;
+  }
+  const plotH = H - padB - padT, plotW = W - padL;
+  const n = daily.length;
+  const slot = plotW / n;
+  const barW = Math.max(2, Math.min(slot * 0.6, 16));
+
+  let out = '';
+  // four horizontal gridlines with scale labels
+  for(let i = 0; i <= 4; i++){
+    const y = padT + plotH * (1 - i/4);
+    const val = peak * i/4;
+    out += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}" class="grid"/>`;
+    out += `<text x="${padL+2}" y="${(y-3).toFixed(1)}" class="ytick">${fmt(val)}</text>`;
+  }
+  // bars
+  daily.forEach((d, i) => {
+    const v = valueOf(d);
+    if(v <= 0) return;
+    const h = plotH * (v / peak);
+    const x = padL + slot*i + (slot - barW)/2;
+    const y = padT + plotH - h;
+    out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="${cls}"/>`;
+  });
+  // x-axis day labels every 4th day
+  daily.forEach((d, i) => {
+    const day = i + 1;
+    if(day === 1 || day % 4 === 1){
+      const x = padL + slot*i + slot/2;
+      out += `<text x="${x.toFixed(1)}" y="${H-6}" class="xtick" text-anchor="middle">${day}</text>`;
+    }
+  });
+  svg.innerHTML = out;
+}
+
+async function renderUsage(){
+  const {first, last} = monthBounds(usageMonth);
+  $('monthLabel').textContent = usageMonth.toLocaleDateString([], {month:'long', year:'numeric'});
+
+  // Month totals and the per-day charts, independent of the session page.
+  try{
+    const h = await (await api(`/api/history?start=${first}&end=${last}`)).json();
+    const t = h.totals;
+    $('uEnergy').textContent = `${n2(t.energyWh/1000)} kWh`;
+    $('uTime').textContent   = hhmmss(t.durationSeconds);
+    $('uCost').textContent   = money(t.cost);
+    $('gEnergyTotal').textContent = `${n2(t.energyWh/1000)} kWh`;
+    $('gCostTotal').textContent   = money(t.cost);
+    drawDayChart('energyChart', h.daily, d => (d.energyWh||0)/1000, 'g-energy', v => `${n1(v)}`);
+    drawDayChart('costChart',   h.daily, d => d.cost||0,            'g-cost',   v => money(v));
+  }catch(e){ /* leave dashes */ }
+
+  let d;
+  try{
+    d = await (await api(
+      `/api/sessions?start=${first}&end=${last}&limit=${SESS_PER}&offset=${sessPage*SESS_PER}`)).json();
+  }catch(e){ return; }
+
+  if(!d.total){
+    $('usageList').innerHTML = '<div class="empty">No sessions this month.</div>';
+    $('sessRange').textContent = '—';
+    return;
+  }
+  if(sessPage*SESS_PER >= d.total){ sessPage = Math.floor((d.total-1)/SESS_PER); return renderUsage(); }
+
+  $('usageList').innerHTML = d.sessions.map(s => {
+    const started = s.startedAt ? new Date(s.startedAt) : null;
+    const when = started
+      ? started.toLocaleString([], {hour:'2-digit', minute:'2-digit'}) + ' ' +
+        started.toLocaleDateString([], {day:'2-digit', month:'2-digit', year:'2-digit'})
+      : '—';
+    return `<div class="urow">
+      <div class="u-energy c-kwh">${n2((s.energyWh||0)/1000)} <span class="u-unit">kWh</span></div>
+      <div class="u-mid">
+        <div class="u-dur">${hhmmss(s.durationSeconds)}</div>
+        <div class="u-when">${esc(when)}</div>
+      </div>
+      <div class="u-cost">${money(s.cost)}</div></div>`;
+  }).join('');
+
+  const from = sessPage*SESS_PER + 1;
+  const to = Math.min(from + d.sessions.length - 1, d.total);
+  $('sessRange').textContent = d.total > SESS_PER ? `${from}–${to} of ${d.total}` : `${d.total} session${d.total===1?'':'s'}`;
+}
+
+function renderConnectors(cp){
+  const strip = $('strip');
+  const list = Object.values(cp?.connectors || {}).filter(c => c.connectorId > 0);
+  if(!list.length){ strip.innerHTML = '<span class="empty">No connector status yet.</span>'; return; }
+  strip.innerHTML = list.map(c => {
+    const s = c.session, bits = [];
+    if(s?.powerW != null) bits.push(`${n2(s.powerW/1000)} kW`);
+    if(s?.currentA != null) bits.push(`${n1(s.currentA)} A`);
+    if(s?.energyWh != null) bits.push(`${n2(s.energyWh/1000)} kWh`);
+    if(c.errorCode && c.errorCode !== 'NoError') bits.push(esc(c.errorCode));
+    // COLOURS is a fixed lookup, so an unknown status can never reach the style.
+    return `<div class="conn ${STATUS_CLASS[c.status] || 'c-idle'}">
+      <div class="n">Connector ${Number(c.connectorId) || 0}</div>
+      <div class="s">${esc(c.status)}</div>
+      <div class="m">${bits.join(' · ') || 'idle'}</div></div>`;
+  }).join('');
+}
+
+function hhmmss(s){
+  if(s == null) return '--:--:--';
+  const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=Math.floor(s%60);
+  return [h,m,x].map(v=>String(v).padStart(2,'0')).join(':');
+}
+function startTimer(session){
+  clearInterval(tick);
+  if(!session || session.elapsedSeconds == null){ $('gTimer').textContent='--:--:--'; return; }
+  const base = session.elapsedSeconds, from = Date.now();
+  const paint = () => $('gTimer').textContent = hhmmss(base + Math.floor((Date.now()-from)/1000));
+  paint(); tick = setInterval(paint, 1000);
+}
+
+/* ---------- polling: fast while charging, slower when idle ---------- */
+let pollTimer = null, pollMs = 3000;
+function schedulePoll(ms){
+  if(ms !== pollMs || !pollTimer){
+    pollMs = ms; clearInterval(pollTimer); pollTimer = setInterval(refresh, ms);
+  }
+}
+
+async function refresh(){
+  let chargers = [];
+  try{
+    chargers = await (await api('/api/chargers')).json();
+    $('link').textContent = 'online'; $('link').className = 'pill live';
+  }catch(e){
+    if(e.message === 'signed out') return;
+    $('link').textContent = 'offline'; $('link').className = 'pill down';
+    return;
+  }
+
+  const ids = chargers.map(c => c.id), sel = $('cp');
+  if(sel.dataset.ids !== ids.join(',')){
+    sel.dataset.ids = ids.join(',');
+    sel.innerHTML = ids.length ? ids.map(i=>`<option>${esc(i)}</option>`).join('')
+                               : '<option value="">none</option>';
+  }
+  if(!current || !ids.includes(current)) current = ids[0] || null;
+  if(current) sel.value = current;
+
+  const cp = chargers.find(c => c.id === current);
+  state = cp;
+  const conn = cp?.connectors?.[connectorId()];
+  const s = conn?.session;
+
+  $('heroTitle').textContent = s ? `Live session · txn ${s.transactionId}` : 'Live session';
+  renderGauges(s, conn?.status);
+  $('tVolts').textContent = s?.voltageV == null ? '—' : Math.round(s.voltageV);
+  $('tTemp').textContent = n1(s?.temperatureC);
+  $('tOffered').textContent = n1(s?.offeredA);
+  const total = conn?.meter?.['Energy.Active.Import.Register']?.value;
+  $('tTotal').textContent = total == null ? '—' : n2(Number(total)/1000);
+
+  if(s?.transactionId !== refresh._txn){ refresh._txn = s?.transactionId; startTimer(s); }
+  renderChart(conn?.history);
+  renderConnectors(cp);
+  schedulePoll(s ? 1000 : 4000);
+
+  if(current && current !== refresh._modeFor){ refresh._modeFor = current; readMode(); }
+
+  $('fFw').textContent = cp?.boot?.firmware_version || '—';
+  $('fDot').style.background = cp ? 'var(--lime)' : 'var(--rose)';
+  if(cp?.connectedSince){
+    const secs = Math.floor((Date.now() - new Date(cp.connectedSince))/1000);
+    $('fUp').textContent = secs < 3600 ? `${Math.floor(secs/60)}m`
+      : `${Math.floor(secs/3600)}h ${Math.floor(secs%3600/60)}m`;
+  }
+
+  if(!refresh._logSkip || refresh._logSkip++ % 3 === 0){
+    refresh._logSkip = 1;
+    renderWeek();
+    const events = await (await api('/api/events?limit=30')).json();
+    $('log').innerHTML = '<tr><th>Time</th><th>Charger</th><th>Message</th><th>Detail</th></tr>' +
+      events.map(e => `<tr><td>${esc(new Date(e.ts).toLocaleTimeString())}</td>
+        <td>${esc(e.chargePointId)}</td><td>${esc(e.type)}</td>
+        <td class="detail">${e.detail==null?'':esc(JSON.stringify(e.detail))}</td></tr>`).join('');
+  }
+}
+
+/* CSP forbids inline onclick/onchange attributes, so everything is wired up
+   here through delegation instead. */
+const ACTIONS = {
+  signOut, startCharge, stopCharge, applyLimit, checkSchedule, setSchedule, clearSchedule,
+  readMode, readConfig, writeConfig, applyRecommended, showMeasurands,
+  backup: downloadBackup, restore: restoreBackup,
+  range7, range30, rangeMonth, rangeCustom, sessPrev, sessNext, monthPrev, monthNext,
+  clearLimit: () => post('clear-limit', {}),
+  solarOff:   () => post('solar', {enabled:false}),
+  reset:        el => post('reset', {type: el.dataset.arg}),
+  availability: el => post('availability', {connectorId:0, type: el.dataset.arg}),
+  setMode:      el => setMode(el.dataset.mode),
+  setAutoStart: el => setAutoStart(el.dataset.auto)
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if(!el || el.disabled) return;
+  const fn = ACTIONS[el.dataset.act];
+  if(fn) fn(el);
+});
+
+document.addEventListener('change', e => {
+  const el = e.target.closest('[data-change]');
+  if(el && ACTIONS[el.dataset.change]) ACTIONS[el.dataset.change](el);
+});
+
+ACTIONS.savePrice = savePrice;
+ACTIONS.saveVehicle = saveVehicle;
+
+$('cp').addEventListener('change', e => { current = e.target.value; refresh(); });
+['limitAmps','phases','batteryKwh','startSoc','targetSoc'].forEach(id => $(id).addEventListener('input', () => {
+  const c = state?.connectors?.[connectorId()];
+  renderGauges(c?.session, c?.status);
+}));
+
+fetch('/version').then(r => r.json()).then(d => {
+  $('fBuild').textContent = d.build;
+  if(d.tls === false && location.protocol === 'https:'){
+    $('fPersist').innerHTML = '<span class="txt-rose">served over http</span>';
+  }
+  if(d.persistent === false){
+    $('fPersist').innerHTML = '<span class="txt-rose">history not saved — '
+      + 'data directory is not writable</span>';
+  }else if(d.persistent === true){
+    $('fPersist').innerHTML = 'history <code>saved</code>';
+  }
+  if(d.build !== PAGE_BUILD){
+    const bar = document.createElement('div');
+    bar.className = 'mismatch';
+    bar.textContent = `Version mismatch — this page is ${PAGE_BUILD} but the server is `
+      + `${d.build}. Upload the matching central_system.py and rebuild, or parts of the `
+      + `dashboard will not work.`;
+    document.querySelector('main').prepend(bar);
+  }
+}).catch(() => {
+  $('fBuild').textContent = 'unknown';
+  const bar = document.createElement('div');
+  bar.className = 'mismatch';
+  bar.textContent = 'This server has no /version endpoint, so it is running code older '
+    + 'than this page. Upload the matching central_system.py and rebuild.';
+  document.querySelector('main').prepend(bar);
+});
+
+loadSettings().then(() => { refresh(); renderWeek(); renderUsage(); });
+schedulePoll(4000);
+
+</script>
+</body>
+</html>

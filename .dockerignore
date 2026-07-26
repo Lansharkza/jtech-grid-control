@@ -1,0 +1,9 @@
+data/
+certs/
+.env
+config.env
+*.log
+__pycache__/
+*.pyc
+.git/
+.github/

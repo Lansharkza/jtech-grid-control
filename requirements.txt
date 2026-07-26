@@ -1,0 +1,7 @@
+# Pinned to the versions this was tested against.
+ocpp==2.1.0
+websockets==16.1.1
+fastapi==0.139.2
+uvicorn==0.51.0
+pydantic==2.13.4
+cryptography==46.0.6
