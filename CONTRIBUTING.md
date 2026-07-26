@@ -1,22 +1,6 @@
 # Contributing
 
-Thanks for helping improve JTech Grid Control.
-
-## Before a pull request
-
-Run the static checker. It catches the mistakes a browser hides — inline styles
-and event handlers that the Content-Security-Policy silently drops, unterminated
-tags, and script references to elements that don't exist:
-
-```bash
-python check.py
-```
-
-Then a quick syntax pass:
-
-```bash
-python -m py_compile central_system.py simulator.py healthcheck.py
-```
+Thanks for helping improve JTech Grid Control, please help me make this even better! 
 
 ## Testing without a charger
 
