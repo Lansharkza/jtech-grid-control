@@ -4,6 +4,8 @@ Port 443 is taken by other containers, so TLS terminates inside this container
 on 8081. That encrypts the password and everything else on the wire, which is
 the point.
 
+You can use CNAME to forward your real domain to something else like I have, but just update the yaml file as per below with all your host and FQDN names.
+
 ## Setup
 
 **Nothing to generate or copy.** On first start the container creates a
@@ -16,7 +18,7 @@ on the data volume, and reuses it on every restart.
 OCPP_COOKIE_SECURE: "1"
 OCPP_AUTO_CERT: "1"
 OCPP_TRUST_PROXY: "0"
-OCPP_TRUSTED_ORIGINS: "hosts,fqdn"
+OCPP_TRUSTED_ORIGINS: "local hosts,your rmeote fqdn"
 ```
 
 Every address you will type into a browser must appear in
