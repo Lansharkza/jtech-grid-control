@@ -1,4 +1,4 @@
-# Publishing the dashboard at ev.moeken.co.za:8081
+# Publishing the dashboard remotely
 
 Port 443 is taken by other containers, so TLS terminates inside this container
 on 8081. That encrypts the password and everything else on the wire, which is
@@ -16,7 +16,7 @@ on the data volume, and reuses it on every restart.
 OCPP_COOKIE_SECURE: "1"
 OCPP_AUTO_CERT: "1"
 OCPP_TRUST_PROXY: "0"
-OCPP_TRUSTED_ORIGINS: "ev.moeken.co.za,lanshark.synology.me,192.168.0.121"
+OCPP_TRUSTED_ORIGINS: "hosts,fqdn"
 ```
 
 Every address you will type into a browser must appear in
