@@ -48,7 +48,7 @@ TeltoCharge EVC  ──ws://host:9000/EVC121──▶  central_system.py  ◀─
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/jtech-grid-control.git
+git clone https://github.com/Lansharkza/jtech-grid-control.git
 cd jtech-grid-control
 docker compose up -d --build
 ```
