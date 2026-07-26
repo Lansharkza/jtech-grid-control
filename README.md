@@ -10,11 +10,11 @@ alternatively you can just use a VPN for added security
 TeltoCharge EVC  ──ws://host:9000/EVC121──▶  central_system.py  ◀──https://host:8080── (FW)  my link evcontrol.mylink.whatever:8081
 ```
 
-![Dashboard](docs/dash1.jpg)
+![Dashboard](doc/dash1.jpg)
 
-<p align="center">
-  <img src="docs/dash2.jpg" width="45%" alt="Usage graphs">
-  <img src="docs/dash3.jpg" width="45%" alt="Session history">
+<p align="center>
+  <img src="doc/dash2.jpg" width="45%" alt="Usage graphs">
+  <img src="doc/dash3.jpg" width="45%" alt="Session history">
 </p>
 
 
