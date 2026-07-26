@@ -167,7 +167,7 @@ Test without the charger, in a second terminal:
 python simulator.py --url ws://localhost:9000 --id SIM001
 ```
 
-## Point the EVC121 at it
+## Point the EVC121 at it or generic OCPP charger
 
 Configuration happens in the Teltonika app over Bluetooth, not over the network:
 
@@ -253,7 +253,7 @@ rate-limited to 5 failures per IP per 5 minutes. Every API route and the
 dashboard itself require a valid session; the only unauthenticated routes are
 `/login` and the login endpoint.
 
-## Charging modes
+## Charging modes (This is for Teltonika but should work for others too)
 
 Teltonika added two vendor keys in firmware 1.12:
 
@@ -274,6 +274,8 @@ Without one the charger has no import/export reading to work from.
 
 Values verified against Teltonika's published key table — anything outside the
 accepted range comes back `Rejected`.
+
+I have created a "apply recommendations" button to apply all the recommended defaults
 
 | Key | Set to | Charger default | Accepted range |
 |---|---|---|---|
@@ -318,24 +320,6 @@ Profile 2 and 3 also require TLS, so you'd put `wss://` in front of it.
   `TxProfile` if `TxDefaultProfile` doesn't stick.
 - **Timeouts on commands.** The default `response_timeout` is 30s. A charger on a
   weak mobile signal may need longer.
-
-## Before you put it anywhere real
-
-This is a working control plane, not a production CSMS. What's missing:
-
-- **Everything is in memory.** Restart the server and transaction history is gone.
-  Add SQLite or Postgres for `transactions`, `EVENTS`, and the tag whitelist.
-- **`ACCEPT_UNKNOWN_TAGS = True`** means any RFID card starts a charge. The
-  dashboard is password-protected, but the charger's own tag reader is not.
-- **Sessions live in memory**, so a restart signs everyone out. Fine for one
-  operator; swap for signed tokens if you add more.
-- **No TLS.** For anything off a trusted LAN, terminate `wss://` at nginx or
-  Caddy and proxy to port 9000, and set the charger URL to `wss://`. Pair that
-  with `SecurityProfile` 2 and the AuthorizationKey above.
-- **No offline transaction replay.** The charger queues messages it couldn't
-  deliver and sends them on reconnect with old timestamps — worth handling if you
-  care about billing accuracy.
-
 
 ## Dashboard
 
