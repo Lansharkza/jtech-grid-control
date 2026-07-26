@@ -62,9 +62,9 @@ Then:
    `ws://YOUR_HOST:9081/` (the trailing slash matters) and set the charge point
    ID.
 4. Edit `data/config.env` (created on first start) to set your hostname, tariff,
-   and charger ID, then restart.
+   and charger ID, Username, PAssword  then restart. 
 
-No hardware yet? Run the simulator: `python simulator.py --id EVC121 --plugged`.
+If you want to test firts, run the simulator: `python simulator.py --id EVC121 --plugged`.
 
 ## Configuration
 
