@@ -13,14 +13,6 @@ TeltoCharge EVC  ──ws://host:9000/EVC121──▶  central_system.py  ◀─
 <img src="doc/dash1.jpg" width="32%" /> <img src="doc/dash2.jpg" width="32%" /> <img src="doc/dash3.jpg" width="32%" />
 
 
-![Dashboard](doc/dash1.jpg)
-
-<p align="center>
-  <img src="doc/dash2.jpg" width="45%" alt="Usage graphs">
-  <img src="doc/dash3.jpg" width="45%" alt="Session history">
-</p>
-
-
 ## What it does
 
 - **Live dashboard** — amps, power, session energy, cost, and a derived state of
