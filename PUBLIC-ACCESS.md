@@ -25,7 +25,7 @@ Every address you will type into a browser must appear in
 **2. Rebuild** with a bumped image tag. The startup log should read:
 
 ```
-Generated a self-signed certificate for ev.moeken.co.za, ...
+Generated a self-signed certificate for yoursite.remote.com, ...
 Dashboard  https://0.0.0.0:8080/
 ```
 
