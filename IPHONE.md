@@ -2,7 +2,7 @@
 
 ## Add to Home Screen (recommended)
 
-1. Open `http://192.168.0.121:8081/` in **Safari** (not Chrome — only Safari can
+1. Open `http://remote.yourdomain.com:8081/` in **Safari** (not Chrome — only Safari can
    install to the home screen on iOS).
 2. Tap the **Share** button, then **Add to Home Screen**.
 3. It appears as "Grid Control" with the hexagon icon.
