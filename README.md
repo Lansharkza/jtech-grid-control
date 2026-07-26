@@ -32,9 +32,12 @@ TeltoCharge EVC121  ──ws://host:9000/EVC121──▶  central_system.py  ◀
 - **iPhone home-screen app** — installable as a PWA; add to home screen from
   Safari.
 
+  I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCCP 1.6, then JTech Grid Control was born!
+
 ## Requirements
 
-- A TeltoCharge EVC121 (other OCPP 1.6J chargers may work but are untested).
+- A TeltoCharge EVC Series charger (other OCPP 1.6J chargers may work but are untested).
+- This is a fully OCCP 1.6 compliant webapp, so other OCPP chargers should work. 
 - Docker, or Docker + Container Manager on a Synology NAS.
 - The charger and the host on the same LAN.
 
