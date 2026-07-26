@@ -1,7 +1,7 @@
 # JTech Grid Control
 
 A self-hosted OCPP 1.6J central system and dashboard for the **Teltonika
-TeltoCharge EVC121** EV charger. Run it on a NAS, a Raspberry Pi, or any machine
+TeltoCharge EVC** EV charger. Run it on a NAS, a Raspberry Pi, or any machine
 with Docker, and control your charger from a browser or phone — on your own
 network, no vendor cloud.
 
@@ -32,7 +32,7 @@ TeltoCharge EVC121  ──ws://host:9000/EVC121──▶  central_system.py  ◀
 - **iPhone home-screen app** — installable as a PWA; add to home screen from
   Safari.
 
-  I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCCP 1.6, then JTech Grid Control was born!
+  I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCPP 1.6, then JTech Grid Control was born!
 
 ## Requirements
 
