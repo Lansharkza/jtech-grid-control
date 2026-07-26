@@ -18,7 +18,7 @@ on the data volume, and reuses it on every restart.
 OCPP_COOKIE_SECURE: "1"
 OCPP_AUTO_CERT: "1"
 OCPP_TRUST_PROXY: "0"
-OCPP_TRUSTED_ORIGINS: "local hosts,your rmeote fqdn"
+OCPP_TRUSTED_ORIGINS: "local hosts,remote.yourdomain.com"
 ```
 
 Every address you will type into a browser must appear in
@@ -27,7 +27,7 @@ Every address you will type into a browser must appear in
 **2. Rebuild** with a bumped image tag. The startup log should read:
 
 ```
-Generated a self-signed certificate for yoursite.remote.com, ...
+Generated a self-signed certificate for remote.yourdomain.com, ...
 Dashboard  https://0.0.0.0:8080/
 ```
 
@@ -74,7 +74,7 @@ request gets a protocol error rather than a redirect. Always type `https://`.
 ## A trusted certificate without port 443
 
 If the warnings become tiresome, a Let's Encrypt certificate can be issued using
-a **DNS-01 challenge**, which proves control of `moeken.co.za` by writing a TXT
+a **DNS-01 challenge**, which proves control of `yourdomain.com` by writing a TXT
 record instead of serving a file on port 80. Tools like `acme.sh` automate this
 against most DNS providers' APIs. Drop the resulting `fullchain.pem` and
 `privkey.pem` into `certs/` as `server.crt` and `server.key`, and set a reminder
@@ -91,7 +91,7 @@ Set `OCPP_ALLOWED_CHARGE_POINTS` to your charger's id regardless.
 
 ## Once it is live
 
-Check `https://ev.moeken.co.za/version`. You want the current build,
+Check `https://remote.yourdomain.com/version`. You want the current build,
 `"persistent": true`, and a padlock with no warning. Then sign in and confirm a
 control action works — if the schedule or mode buttons return an error, the
 `OCPP_TRUSTED_ORIGINS` value does not match the hostname in the address bar.
