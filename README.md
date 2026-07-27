@@ -6,6 +6,8 @@ with Docker, and control your charger from a browser or phone — on your own
 network, or remotely. You can create a port forward on port 8081 and access this anywhere,
 alternatively you can just use a VPN for added security
 
+I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCPP 1.6, then JTech Grid Control was born!
+
 ```
 TeltoCharge EVC  ──ws://host:9000/EVC121──▶  central_system.py  ◀──https://host:8080── (FW) remote.yourdomain.com:8081
 ```
@@ -55,7 +57,6 @@ a tidier inverter card with the active mode shown as a solid green button.
   the inverter's work mode can follow the charger and become solar-aware, so the car
   draws surplus solar when available and spares the battery when it isn't. Off unless configured.
 
-I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCPP 1.6, then JTech Grid Control was born!
 
 ## Requirements
 
