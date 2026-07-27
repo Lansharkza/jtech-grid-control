@@ -60,7 +60,7 @@ a tidier inverter card with the active mode shown as a solid green button.
 
 ## Requirements
 
-- A TeltoCharge EVC Series charger (other OCPP 1.6J chargers may work but are untested).
+- A TeltoCharge EVC Series charger or generic OCPP charger.
 - This is a fully OCPP 1.6 compliant webapp, so other OCPP chargers should work. 
 - Docker, or Docker + Container Manager on a Synology NAS.
 - The charger and the host on the same LAN.
