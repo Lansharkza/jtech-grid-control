@@ -55,7 +55,7 @@ a tidier inverter card with the active mode shown as a solid green button.
   the inverter's work mode can follow the charger and become solar-aware, so the car
   draws surplus solar when available and spares the battery when it isn't. Off unless configured.
 
-  I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCPP 1.6, then JTech Grid Control was born!
+I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCPP 1.6, then JTech Grid Control was born!
 
 ## Requirements
 
