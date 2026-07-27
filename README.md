@@ -12,6 +12,21 @@ TeltoCharge EVC  ──ws://host:9000/EVC121──▶  central_system.py  ◀─
 
 <img src="doc/dash1.jpg" width="32%" /> <img src="doc/dash2.jpg" width="32%" /> <img src="doc/dash3.jpg" width="32%" />
 
+## New in v39
+
+**Solar Assistant integration and solar-aware charging.** If you run a
+[Solar Assistant](https://solar-assistant.io) inverter, the dashboard now shows
+it live — battery, solar, load and grid — and drives its work mode to follow the
+charger. While a car is charging it shares surplus solar to the car when there's
+enough sun and battery headroom, and protects the battery otherwise, with the
+thresholds adjustable right on the panel. Plus refreshed charger-mode logic and
+a tidier inverter card with the active mode shown as a solid green button.
+
+<img src="doc/v39-2.png" width="90%" />
+
+<img src="doc/v39-1.png" width="90%" />
+
+<img src="doc/v39-3.png" width="90%" />
 
 ## What it does
 
