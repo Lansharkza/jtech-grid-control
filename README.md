@@ -36,12 +36,16 @@ TeltoCharge EVC  ──ws://host:9000/EVC121──▶  central_system.py  ◀─
 - **iPhone home-screen app** — installable as a PWA; add to home screen from
   Safari.
 
+- **Solar inverter control (optional)** — if you run [Solar Assistant](https://solar-assistant.io),
+  the inverter's work mode can follow the charger and become solar-aware, so the car
+  draws surplus solar when available and spares the battery when it isn't. Off unless configured.
+
   I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCPP 1.6, then JTech Grid Control was born!
 
 ## Requirements
 
 - A TeltoCharge EVC Series charger (other OCPP 1.6J chargers may work but are untested).
-- This is a fully OCCP 1.6 compliant webapp, so other OCPP chargers should work. 
+- This is a fully OCPP 1.6 compliant webapp, so other OCPP chargers should work. 
 - Docker, or Docker + Container Manager on a Synology NAS.
 - The charger and the host on the same LAN.
 
@@ -72,6 +76,28 @@ All settings live in `data/config.env`, a plain file created on first start.
 See `env.example` for the full list with comments. Nothing sensitive ships in
 the image; passwords and certificates stay on your host.
 
+## Solar inverter control (optional)
+
+If you run [Solar Assistant](https://solar-assistant.io), the inverter's work
+mode can follow the charger. To enable it, add these to `data/config.env` and
+restart:
+
+```
+SOLAR_ASSISTANT_HOST=192.168.1.60          # your Solar Assistant device IP
+SOLAR_ASSISTANT_USER=admin
+SOLAR_ASSISTANT_PASSWORD=your-local-password
+```
+
+Set a **local** device password in Solar Assistant first if you haven't. Leave
+`SOLAR_ASSISTANT_HOST` blank to keep the feature off.
+
+Once set, an inverter panel appears on the dashboard with live battery, solar,
+load and grid, and the work mode follows charging: while a car charges it shares
+solar to the car when solar output and battery SOC are above your thresholds
+(default 5 kW / 40%, adjustable on the panel), and protects the battery
+otherwise. The exact work-mode strings and thresholds are configurable — see the
+Solar Assistant block in `env.example`.
+
 ## Documentation
 
 | Guide | For |
@@ -84,7 +110,8 @@ the image; passwords and certificates stay on your host.
 
 ## Compatibility
 
-Built and tested against the TeltoCharge EVC121 (tethered, single-phase, 32 A).
+Built and tested against the Teltonika TeltoCharge EVC series (tethered,
+single-phase, 32 A).
 The OCPP 1.6J implementation is standard, so other chargers may work, but the
 charging modes and some defaults are Teltonika-specific. Reports of other
 hardware welcome.
@@ -103,7 +130,7 @@ MIT — see `LICENSE`.
 
 # Reference
 
-OCPP 1.6J central system for the Teltonika TeltoCharge EVC121.
+OCPP 1.6J central system for the Teltonika TeltoCharge EVC series.
 
 A self-hosted central system (CSMS): the charger dials in over WebSocket, and you
 drive it from a REST API or the browser dashboard.
