@@ -6,7 +6,7 @@ services:
     build: .
     # Bump this on every upgrade — Container Manager reuses an image whose tag
     # already exists, so without a change nothing rebuilds.
-    image: jtech-grid-control:35
+    image: jtech-grid-control:57
     container_name: jtech-grid-control
     restart: unless-stopped
     ports:
@@ -39,6 +39,18 @@ services:
       # Record a session when the car reaches SOC (SuspendedEV) rather than when
       # the cable is finally pulled. Set to 0 to record only at StopTransaction.
       OCPP_FINALISE_ON_SUSPENDED_EV: "${OCPP_FINALISE_ON_SUSPENDED_EV:-1}"
+
+      # Solar Assistant (optional). Set these in config.env, not here. When a
+      # host is present the inverter work mode follows the charger.
+      SOLAR_ASSISTANT_HOST: "${SOLAR_ASSISTANT_HOST:-}"
+      SOLAR_ASSISTANT_USER: "${SOLAR_ASSISTANT_USER:-admin}"
+      SOLAR_ASSISTANT_PASSWORD: "${SOLAR_ASSISTANT_PASSWORD:-}"
+      SOLAR_ASSISTANT_MODE_CHARGING: "${SOLAR_ASSISTANT_MODE_CHARGING:-Zero export to load}"
+      SOLAR_ASSISTANT_MODE_IDLE: "${SOLAR_ASSISTANT_MODE_IDLE:-Zero export to CT}"
+      # Solar-aware charging: while charging, share to the board only when solar
+      # and battery are above these (also adjustable live on the dashboard).
+      SOLAR_MIN_PV_W: "${SOLAR_MIN_PV_W:-5000}"
+      SOLAR_MIN_BATTERY_SOC: "${SOLAR_MIN_BATTERY_SOC:-40}"
     volumes:
       # A plain folder next to this file, so the data is visible in File Station,
       # easy to back up, and survives deleting or renaming the project.

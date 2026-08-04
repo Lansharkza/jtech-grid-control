@@ -25,6 +25,9 @@ COPY central_system.py ./
 COPY simulator.py ./
 COPY static ./static
 COPY make-cert.sh check.py entrypoint.sh healthcheck.py ./
+# Optional one-time history seed. Imported on first start (with de-duplication)
+# then renamed, so it is safe to leave in place. Remove it if you don't want it.
+COPY seed-sessions.jso[n] ./
 
 RUN mkdir -p /app/data \
     && useradd --create-home --uid 1000 ocpp \

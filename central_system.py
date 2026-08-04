@@ -25,6 +25,8 @@ import os
 import re
 import secrets
 import time
+import urllib.parse
+import urllib.request
 from collections import deque
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -107,6 +109,23 @@ OCPP_CURRENCY=R
 OCPP_BATTERY_KWH=60
 OCPP_TARGET_SOC=80
 
+# --- Solar Assistant (optional) --------------------------------------------
+# Link an inverter managed by Solar Assistant so its work mode follows the
+# charger. While the car is actively charging the mode is set to
+# SOLAR_ASSISTANT_MODE_CHARGING; the rest of the time it returns to
+# SOLAR_ASSISTANT_MODE_IDLE. Leave the host blank to disable entirely.
+#
+# The password is your Solar Assistant *local* device password. It never leaves
+# this file. Set a local password in Solar Assistant first if you have not.
+SOLAR_ASSISTANT_HOST=
+SOLAR_ASSISTANT_USER=admin
+SOLAR_ASSISTANT_PASSWORD=
+# Exact work-mode strings from the Solar Assistant dropdown. Defaults suit a
+# Sunsynk/Deye: keep the battery on the essential load while charging, share to
+# the whole board (CT) otherwise.
+SOLAR_ASSISTANT_MODE_CHARGING=Zero export to load
+SOLAR_ASSISTANT_MODE_IDLE=Zero export to CT
+
 TZ=Africa/Johannesburg
 """
 
@@ -154,6 +173,10 @@ load_config_file()
 # In-memory state
 # --------------------------------------------------------------------------
 CHARGERS: Dict[str, "ChargePoint"] = {}
+# Deliberate "take offline" intent, kept by charger id so it persists across the
+# charger reconnecting. Prevents the auto-operative-on-reconnect from overriding
+# an operator's explicit decision to keep the charger offline.
+OFFLINE_INTENT: Dict[str, bool] = {}
 EVENTS: deque = deque(maxlen=500)
 _txn_counter = itertools.count(1)
 
@@ -175,6 +198,177 @@ AUTHORIZATION_KEY = os.environ.get("OCPP_AUTHORIZATION_KEY", "")
 
 # The EVC121 accepts 60-86400 for HeartbeatInterval; anything lower is rejected.
 HEARTBEAT_INTERVAL = 60
+
+
+# --------------------------------------------------------------------------
+# Solar Assistant integration. Optional. When a Solar Assistant host is set,
+# the inverter's work mode is driven to follow the charger: "charging" mode
+# while a session is active, "idle" mode otherwise. Talks to Solar Assistant's
+# local REST API (https://solar-assistant.io/help/integration/rest-api) using
+# the built-in urllib in a thread, so no extra dependency is pulled in.
+# --------------------------------------------------------------------------
+SA_HOST = os.environ.get("SOLAR_ASSISTANT_HOST", "").strip()
+SA_USER = os.environ.get("SOLAR_ASSISTANT_USER", "admin").strip()
+SA_PASSWORD = os.environ.get("SOLAR_ASSISTANT_PASSWORD", "")
+SA_MODE_CHARGING = os.environ.get("SOLAR_ASSISTANT_MODE_CHARGING", "Zero export to load").strip()
+SA_MODE_IDLE = os.environ.get("SOLAR_ASSISTANT_MODE_IDLE", "Zero export to CT").strip()
+# The work modes offered on the dashboard, in the exact strings the inverter
+# accepts. "Selling first" is deliberately excluded — battery-sharing modes only.
+SA_WORK_MODES = ["Zero export to load", "Zero export to CT"]
+SA_WORK_MODE_TOPIC = "inverter_1/work_mode"
+SA_ENABLED = bool(SA_HOST)
+
+# Whether the automatic follow-the-charger behaviour is on. Toggled from the
+# dashboard; the host being configured is what enables the feature at all.
+SA_AUTO = {"enabled": SA_ENABLED}
+
+# When the user last set a work mode by hand. The solar watcher leaves the
+# inverter alone for a grace period after, so a manual choice isn't immediately
+# overridden by the automation.
+SA_MANUAL_OVERRIDE_AT = [0.0]
+SA_MANUAL_GRACE_SECONDS = 120
+
+
+class SolarAssistant:
+    """Minimal client for Solar Assistant's local REST API. All network calls
+    run in a thread so they never block the asyncio loop, and every call is
+    best-effort: a failure is logged and swallowed so the charger is never held
+    up by the inverter link."""
+
+    def __init__(self, host: str, user: str, password: str):
+        self.base = f"http://{host}".rstrip("/")
+        self.user = user
+        self.password = password
+        self._auth = None
+        if user and password:
+            token = base64.b64encode(f"{user}:{password}".encode()).decode()
+            self._auth = f"Basic {token}"
+
+    def _blocking_get(self, topic: Optional[str] = None) -> Any:
+        url = f"{self.base}/api/v1/metrics"
+        if topic:
+            url += "?topic=" + urllib.parse.quote(topic, safe="/*")
+        req = urllib.request.Request(url)
+        if self._auth:
+            req.add_header("Authorization", self._auth)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read().decode())
+
+    def _blocking_set(self, topic: str, value: str) -> Dict[str, Any]:
+        url = f"{self.base}/api/v1/metrics"
+        body = json.dumps({"topic": topic, "value": value}).encode()
+        req = urllib.request.Request(url, data=body, method="POST")
+        req.add_header("Content-Type", "application/json")
+        if self._auth:
+            req.add_header("Authorization", self._auth)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read().decode())
+
+    async def get_metrics(self, topic: Optional[str] = None) -> Optional[Any]:
+        try:
+            return await asyncio.to_thread(self._blocking_get, topic)
+        except Exception as exc:  # noqa: BLE001 - best effort by design
+            log.warning("solar assistant read failed: %s", exc)
+            return None
+
+    async def get_work_mode(self) -> Optional[str]:
+        data = await self.get_metrics(SA_WORK_MODE_TOPIC)
+        if isinstance(data, list):
+            for entry in data:
+                if entry.get("topic") == SA_WORK_MODE_TOPIC:
+                    return entry.get("value")
+        return None
+
+    async def set_work_mode(self, value: str) -> bool:
+        """Set the inverter work mode, but only if it is not already there, so
+        we never thrash the inverter with redundant writes. Returns True on a
+        confirmed change, False otherwise (including 'already set')."""
+        current = await self.get_work_mode()
+        if current == value:
+            return False
+        try:
+            result = await asyncio.to_thread(self._blocking_set, SA_WORK_MODE_TOPIC, value)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("solar assistant set work mode failed: %s", exc)
+            return False
+        ok = isinstance(result, dict) and result.get("result") == "ok"
+        if ok:
+            log.info("solar assistant: work mode -> %s", value)
+        else:
+            log.warning("solar assistant rejected work mode %r: %s", value, result)
+        return ok
+
+    async def status(self) -> Optional[Dict[str, Any]]:
+        """A compact snapshot for the dashboard panel."""
+        data = await self.get_metrics()
+        if not isinstance(data, list):
+            return None
+        wanted = {
+            "inverter_1/work_mode": "workMode",
+            "inverter_1/battery_state_of_charge": "batterySoc",
+            "inverter_1/battery_power": "batteryW",
+            "inverter_1/pv_power": "pvW",
+            "inverter_1/load_power": "loadW",
+            "inverter_1/grid_power": "gridW",
+            "inverter_1/battery_temperature": "batteryTemp",
+        }
+        out: Dict[str, Any] = {}
+        for entry in data:
+            key = wanted.get(entry.get("topic"))
+            if key:
+                out[key] = entry.get("value")
+        return out or None
+
+
+SA_CLIENT: Optional[SolarAssistant] = (
+    SolarAssistant(SA_HOST, SA_USER, SA_PASSWORD) if SA_ENABLED else None
+)
+
+
+async def _choose_charging_mode() -> str:
+    """While a car is charging, decide the inverter work mode from live solar:
+    share to the whole board (idle mode) when there is enough sun AND the
+    battery is above the floor, so the car soaks up surplus; otherwise keep the
+    battery on the essential load. Falls back to the protective 'load' mode if
+    the inverter can't be read."""
+    snapshot = await SA_CLIENT.status() if SA_CLIENT else None
+    if not snapshot:
+        return SA_MODE_CHARGING          # can't read -> protect the battery
+    pv = snapshot.get("pvW") or 0
+    soc = snapshot.get("batterySoc")
+    min_pv = float(SETTINGS.get("solarMinPvW") or 0)
+    min_soc = float(SETTINGS.get("solarMinBatterySoc") or 0)
+    sunny = pv >= min_pv
+    charged = soc is None or soc >= min_soc
+    # Enough sun and battery healthy -> let the car share solar from the board.
+    if sunny and charged:
+        return SA_MODE_IDLE
+    return SA_MODE_CHARGING
+
+
+async def sync_inverter_to_charging(charging: bool) -> None:
+    """Drive the inverter work mode to match the charging state. When charging,
+    the mode is solar-aware (see _choose_charging_mode). When idle, the battery
+    is always shared to the whole board. No-op unless configured and enabled."""
+    if not SA_CLIENT or not SA_AUTO["enabled"]:
+        return
+    target = await _choose_charging_mode() if charging else SA_MODE_IDLE
+    await SA_CLIENT.set_work_mode(target)
+
+
+def _any_active_charging() -> bool:
+    """True if any connector anywhere has a live transaction that has not been
+    finalised — i.e. a car is actively drawing. Used so the inverter only
+    returns to idle mode once nothing is charging."""
+    for cp in CHARGERS.values():
+        for conn in cp.connectors.values():
+            txn_id = conn.get("transactionId")
+            if not txn_id:
+                continue
+            txn = cp.transactions.get(txn_id)
+            if txn and not txn.get("finalised"):
+                return True
+    return False
 
 # --------------------------------------------------------------------------
 # Dashboard sign-in. Set OCPP_ADMIN_USER / OCPP_ADMIN_PASSWORD in the
@@ -221,7 +415,7 @@ REMEMBER_TTL = 30 * 24 * 3600
 SESSION_COOKIE = "ocpp_session"
 
 # Bump when you change the dashboard, so /version tells you what is deployed.
-BUILD = "2026-07-26-v31"
+BUILD = "2026-07-28-v53"
 
 # Tariff and schedule settings. Persisted to /app/data if that directory is
 # writable, otherwise kept in memory and lost on restart.
@@ -245,6 +439,12 @@ SETTINGS: Dict[str, Any] = {
     #   schedule - as above, but only inside the schedule window
     "autoStart": "off",
     "autoStartIdTag": "AUTO",
+    # Solar-aware charging. While a car is charging, share the battery to the
+    # whole board (Zero export to CT) so the car can pull surplus solar — but
+    # only when there is enough sun AND the battery is above a floor. Otherwise
+    # keep the battery on the essential load. These two are user-adjustable.
+    "solarMinPvW": float(os.environ.get("SOLAR_MIN_PV_W", "5000")),
+    "solarMinBatterySoc": float(os.environ.get("SOLAR_MIN_BATTERY_SOC", "40")),
 }
 
 
@@ -353,6 +553,93 @@ def load_history() -> None:
             HISTORY.extend(json.load(fh))
             log.info("%d past sessions loaded", len(HISTORY))
     except (OSError, ValueError):
+        pass
+    seed_history()
+    # Resume transaction ids ABOVE the highest one already recorded, so a restart
+    # never re-issues an id that a stored session still uses. Without this the
+    # counter restarts at 1 each boot and a new session can overwrite an older
+    # one that happened to share the id.
+    global _txn_counter
+    highest = 0
+    for entry in HISTORY:
+        try:
+            highest = max(highest, int(entry.get("transactionId") or 0))
+        except (TypeError, ValueError):
+            continue
+    _txn_counter = itertools.count(highest + 1)
+    if highest:
+        log.info("transaction ids resume from %d", highest + 1)
+
+
+def seed_history() -> None:
+    """One-time import of a bundled session file. If data/seed-sessions.json is
+    present, its sessions are merged in with the same de-duplication used by the
+    dashboard restore, then the file is renamed so it never runs again. This lets
+    a charger's own exported history be shipped in without overwriting anything
+    already recorded live."""
+    seed_candidates = [
+        os.path.join(os.path.dirname(HISTORY_PATH), "seed-sessions.json"),
+        os.path.join(os.getcwd(), "seed-sessions.json"),
+        "/app/seed-sessions.json",
+    ]
+    seed_path = next((p for p in seed_candidates if os.path.exists(p)), None)
+    if not seed_path:
+        return
+    try:
+        with open(seed_path) as fh:
+            payload = json.load(fh)
+    except (OSError, ValueError) as exc:
+        log.warning("seed file present but unreadable: %s", exc)
+        return
+
+    incoming = payload.get("sessions", payload) if isinstance(payload, dict) else payload
+    if not isinstance(incoming, list):
+        log.warning("seed file has no session list; skipping")
+        return
+
+    def keys(entry):
+        stamp = entry.get("startedAt")
+        minute = None
+        if stamp:
+            try:
+                minute = datetime.fromisoformat(str(stamp).replace("Z", "+00:00")) \
+                    .astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M")
+            except ValueError:
+                minute = None
+        energy = round((entry.get("energyWh") or 0) / 100) * 100
+        return (entry.get("transactionId"), stamp), ((minute, energy) if minute else None)
+
+    seen_exact, seen_fuzzy = set(), set()
+    for e in HISTORY:
+        ex, fz = keys(e)
+        seen_exact.add(ex)
+        if fz:
+            seen_fuzzy.add(fz)
+
+    added = 0
+    for e in incoming:
+        if not isinstance(e, dict):
+            continue
+        ex, fz = keys(e)
+        if ex in seen_exact or (fz and fz in seen_fuzzy):
+            continue
+        seen_exact.add(ex)
+        if fz:
+            seen_fuzzy.add(fz)
+        HISTORY.append(e)
+        added += 1
+
+    HISTORY.sort(key=lambda e: str(e.get("startedAt") or ""))
+    del HISTORY[:-HISTORY_MAX]
+    if added:
+        save_history()
+    log.info("seed import: %d new sessions merged (%d already present)",
+             added, len(incoming) - added)
+
+    # Rename so it never re-imports, even across restarts.
+    try:
+        os.rename(seed_path, seed_path + ".imported")
+    except OSError:
         pass
 
 
@@ -527,8 +814,58 @@ class ChargePoint(BaseChargePoint):
         self._touch()
         self.boot = {"vendor": charge_point_vendor, "model": charge_point_model, **kwargs}
         record(self.id, "BootNotification", self.boot)
+        # Ask the charger to report its current status right away, so the
+        # dashboard shows the connector and its state without the operator having
+        # to click "Bring online" after a reconnect or container restart.
+        asyncio.create_task(self._request_status_after_boot())
         return result("BootNotification", current_time=utcnow(),
                       interval=HEARTBEAT_INTERVAL, status="Accepted")
+
+    async def _request_status_after_boot(self):
+        # Small delay so the charger finishes its boot handshake first.
+        await asyncio.sleep(2)
+        self._last_status_trigger = time.time()
+        try:
+            await self.call(request("TriggerMessage", requested_message="StatusNotification"))
+        except Exception as exc:  # noqa: BLE001 - best effort
+            log.debug("status trigger after boot failed: %s", exc)
+
+    async def _request_status_on_connect(self):
+        # Wait for the message loop to be running, and long enough that if the
+        # charger is also going to send a BootNotification (a real power-cycle),
+        # that path handles this instead and this one steps aside.
+        await asyncio.sleep(6)
+        if time.time() - getattr(self, "_last_status_trigger", 0) < 8:
+            return  # boot path already handled it
+        self._last_status_trigger = time.time()
+        # A charger that reconnects after a reboot can come back in a state where
+        # it is connected but not reporting, and a bare status request is not
+        # always enough to revive it — the reliable nudge is ChangeAvailability
+        # -> Operative (what the "Bring online" button sends). Do that first,
+        # UNLESS the operator deliberately took the charger offline, in which case
+        # that choice is respected.
+        if not OFFLINE_INTENT.get(self.id, False):
+            try:
+                await self.call(request("ChangeAvailability",
+                                        connector_id=0, type="Operative"))
+                log.info("%s: set operative on reconnect", self.id)
+            except Exception as exc:  # noqa: BLE001 - best effort
+                log.debug("operative on connect failed: %s", exc)
+        try:
+            await self.call(request("TriggerMessage", requested_message="StatusNotification"))
+            log.info("%s: requested status on reconnect", self.id)
+        except Exception as exc:  # noqa: BLE001 - best effort
+            log.debug("status trigger on connect failed: %s", exc)
+        # A charger that rebooted loses its recurring charging profile, so the
+        # schedule's out-of-window current cap would silently vanish and the car
+        # could charge full-power at any hour. Re-assert the schedule on the
+        # charger if we're in schedule mode with a saved schedule.
+        if SETTINGS.get("autoStart") == "schedule" and SETTINGS.get("schedule"):
+            try:
+                await apply_schedule_profile(self)
+                log.info("%s: schedule re-applied on reconnect", self.id)
+            except Exception as exc:  # noqa: BLE001 - best effort
+                log.debug("schedule re-apply on connect failed: %s", exc)
 
     @on("Heartbeat")
     async def on_heartbeat(self, **kwargs):
@@ -572,6 +909,13 @@ class ChargePoint(BaseChargePoint):
             self._finalise_session(connector_id, timestamp,
                                    reason=END_OF_CHARGE[status])
 
+        # Cable unplugged (Available/Preparing after a session): clear any
+        # autostart back-off so replugging a car starts promptly rather than
+        # waiting out the long post-rejection cadence.
+        if status in ("Available", "Preparing"):
+            _autostart_backoff.pop(f"{self.id}:{connector_id}", None)
+            _autostart_attempts.pop(f"{self.id}:{connector_id}", None)
+
         # If the car resumes after having been finalised (surplus returns, or the
         # battery drops below target), let the ongoing transaction record again
         # from here, so the extra energy is not lost.
@@ -581,6 +925,10 @@ class ChargePoint(BaseChargePoint):
             if txn and txn.get("finalised"):
                 txn["finalised"] = False
                 txn["resumedAt"] = kwargs.get("timestamp") or utcnow()
+            # Car is drawing again (whether a fresh resume or steady charging):
+            # keep the battery on the essential load.
+            if txn:
+                asyncio.create_task(sync_inverter_to_charging(True))
 
         return result("StatusNotification")
 
@@ -638,10 +986,14 @@ class ChargePoint(BaseChargePoint):
             "peakW": max((p["w"] for p in conn.get("history", [])), default=None),
         }
 
-        # If this transaction was already written (car reached SOC, then resumed,
-        # now finishing again), update that row in place rather than duplicate it.
+        # If this exact transaction was already written (car reached SOC, then
+        # resumed, now finishing again), update that row in place rather than
+        # duplicate it. Match on BOTH the id AND the start time: a restart can
+        # re-use a transaction id, and matching on id alone would let a new
+        # session overwrite an unrelated older one that shared the id.
         for i, existing in enumerate(HISTORY):
-            if existing.get("transactionId") == txn_id:
+            if (existing.get("transactionId") == txn_id
+                    and existing.get("startedAt") == txn.get("startedAt")):
                 HISTORY[i] = entry
                 break
         else:
@@ -652,6 +1004,11 @@ class ChargePoint(BaseChargePoint):
         record(self.id, "SessionRecorded",
                {"transactionId": txn_id, "reason": reason,
                 "energyWh": txn["energyWh"], "durationSeconds": duration})
+        # Charging has ended (SOC reached, cable out, window closed, or cycle
+        # done). Return the inverter to sharing the battery with the whole board,
+        # unless another connector is still actively charging.
+        if not _any_active_charging():
+            asyncio.create_task(sync_inverter_to_charging(False))
 
     @on("Authorize")
     async def on_authorize(self, id_tag, **kwargs):
@@ -674,6 +1031,9 @@ class ChargePoint(BaseChargePoint):
         self._recompute_session(connector_id)
         record(self.id, "StartTransaction", {"transactionId": txn_id, "connectorId": connector_id,
                                              "idTag": id_tag, "meterStart": meter_start})
+        # Car is now drawing: keep the battery on the essential load, not shared
+        # to the whole board. Best-effort, never blocks the charge.
+        asyncio.create_task(sync_inverter_to_charging(True))
         return result("StartTransaction", transaction_id=txn_id, id_tag_info={"status": "Accepted"})
 
     @on("StopTransaction")
@@ -777,6 +1137,12 @@ async def on_connect(connection, path: Optional[str] = None):
     cp = ChargePoint(cp_id, connection)
     CHARGERS[cp_id] = cp
     record(cp_id, "Connected")
+    # Ask the charger to report its current status as soon as it connects — this
+    # covers a container restart where the charger's WebSocket reconnects but it
+    # doesn't power-cycle (so no BootNotification fires). Without this the
+    # dashboard would show the connector as unknown until the operator clicked
+    # "Bring online". Best-effort and slightly delayed so the charger settles.
+    asyncio.create_task(cp._request_status_on_connect())
     try:
         await cp.start()
     except websockets.exceptions.ConnectionClosed:
@@ -785,6 +1151,16 @@ async def on_connect(connection, path: Optional[str] = None):
         if CHARGERS.get(cp_id) is cp:
             del CHARGERS[cp_id]
         record(cp_id, "Disconnected")
+        # If the charger drops mid-session, the normal end-of-charge events never
+        # fire, which would leave the inverter stuck on the charging work mode
+        # (battery on load only) indefinitely. Reconcile now: with this charger
+        # gone, if nothing else is charging, return the inverter to idle (share
+        # to the whole board). Best-effort — never raises into the finally.
+        try:
+            if not _any_active_charging():
+                asyncio.create_task(sync_inverter_to_charging(False))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("inverter reconcile on disconnect failed: %s", exc)
 
 
 # --------------------------------------------------------------------------
@@ -1142,7 +1518,13 @@ async def change_configuration(charge_point_id: str, body: ConfigBody):
 
 @router.post("/chargers/{charge_point_id}/availability")
 async def change_availability(charge_point_id: str, body: AvailabilityBody):
-    return await send(get_cp(charge_point_id), "ChangeAvailability",
+    cp = get_cp(charge_point_id)
+    # Remember a deliberate offline so an automatic reconnect doesn't flip it
+    # back to operative behind the operator's back. Stored by charger id so it
+    # survives the charger reconnecting (which rebuilds the ChargePoint object).
+    if body.connectorId == 0:
+        OFFLINE_INTENT[charge_point_id] = (body.type == "Inoperative")
+    return await send(cp, "ChangeAvailability",
                       connector_id=body.connectorId, type=body.type)
 
 
@@ -1311,7 +1693,25 @@ async def update_settings(body: SettingsBody):
     if body.autoStart is not None:
         if body.autoStart not in ("off", "plugged", "schedule"):
             raise HTTPException(400, "autoStart must be off, plugged or schedule")
+        changed_mode = SETTINGS.get("autoStart") != body.autoStart
+        previous_mode = SETTINGS.get("autoStart")
         SETTINGS["autoStart"] = body.autoStart
+        # A deliberate mode change means "act on this now" — clear any retry
+        # back-off and attempt timers left over from the previous mode.
+        if changed_mode:
+            _autostart_backoff.clear()
+            _autostart_attempts.clear()
+        # Keep the on-charger schedule cap in sync with the mode, every time this
+        # is set (not only when the mode changes) — so pressing "In window" always
+        # re-asserts the cap even if it went missing (e.g. the charger rebooted
+        # and dropped the profile), and leaving schedule mode always removes it.
+        # The saved schedule is never deleted, so nothing is lost.
+        if SETTINGS.get("schedule"):
+            for cp in list(CHARGERS.values()):
+                if body.autoStart == "schedule":
+                    await apply_schedule_profile(cp)
+                elif previous_mode == "schedule" or changed_mode:
+                    await remove_schedule_profile(cp)
     if body.autoStartIdTag:
         SETTINGS["autoStartIdTag"] = body.autoStartIdTag[:20]
     if body.chargingEfficiency is not None:
@@ -1320,6 +1720,63 @@ async def update_settings(body: SettingsBody):
         SETTINGS["chargingEfficiency"] = round(body.chargingEfficiency, 3)
     save_settings()
     return SETTINGS
+
+
+async def apply_schedule_profile(cp) -> bool:
+    """Push the saved schedule to the charger as a recurring charging profile.
+    Returns True if accepted. Does not change saved settings — it just puts the
+    profile on the charger. Used when entering schedule mode."""
+    sched = SETTINGS.get("schedule")
+    if not sched:
+        return False
+    try:
+        sh, sm = (int(x) for x in sched["start"].split(":"))
+        eh, em = (int(x) for x in sched["end"].split(":"))
+    except (KeyError, ValueError):
+        return False
+    start_s = sh * 3600 + sm * 60
+    end_s = eh * 3600 + em * 60
+    amps = sched.get("limitAmps", 32)
+    phases = sched.get("numberPhases", 1)
+    period = lambda at, a: {"startPeriod": at, "limit": a, "numberPhases": phases}
+    if start_s < end_s:
+        periods = [period(0, 0), period(start_s, amps), period(end_s, 0)]
+    else:
+        periods = [period(0, amps), period(end_s, 0), period(start_s, amps)]
+    now = datetime.now().astimezone()
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    profile = {
+        "chargingProfileId": SCHEDULE_PROFILE_ID,
+        "stackLevel": 1,
+        "chargingProfilePurpose": "TxDefaultProfile",
+        "chargingProfileKind": "Recurring",
+        "recurrencyKind": "Daily",
+        "chargingSchedule": {
+            "duration": 86400,
+            "startSchedule": midnight.astimezone(timezone.utc).isoformat(),
+            "chargingRateUnit": "A",
+            "chargingSchedulePeriod": periods,
+        },
+    }
+    try:
+        resp = await send(cp, "SetChargingProfile", connector_id=1,
+                          cs_charging_profiles=profile)
+        return resp.get("status") == "Accepted"
+    except Exception as exc:  # noqa: BLE001
+        log.warning("apply schedule profile failed: %s", exc)
+        return False
+
+
+async def remove_schedule_profile(cp) -> None:
+    """Remove the schedule profile from the charger so it no longer caps current
+    outside the window — WITHOUT deleting the saved schedule, so it can be
+    re-applied later. Used when leaving schedule mode (e.g. switching to
+    'On plug-in' for ad-hoc full-power charging like preconditioning)."""
+    try:
+        await send(cp, "ClearChargingProfile", id=SCHEDULE_PROFILE_ID)
+        log.info("%s: schedule cap removed from charger (saved schedule kept)", cp.id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("remove schedule profile failed: %s", exc)
 
 
 @router.post("/chargers/{charge_point_id}/schedule")
@@ -1546,6 +2003,89 @@ async def backup():
     }
 
 
+@router.get("/solar")
+async def solar_status():
+    """Live inverter snapshot for the dashboard panel, plus whether the
+    follow-the-charger automation is configured and enabled."""
+    if not SA_ENABLED:
+        return {"configured": False}
+    snapshot = await SA_CLIENT.status()
+    inv = snapshot or {}
+    # What the automation would choose right now, for the dashboard to explain.
+    would_share = None
+    if snapshot:
+        pv = inv.get("pvW") or 0
+        soc = inv.get("batterySoc")
+        would_share = (pv >= float(SETTINGS.get("solarMinPvW") or 0)
+                       and (soc is None or soc >= float(SETTINGS.get("solarMinBatterySoc") or 0)))
+    return {
+        "configured": True,
+        "auto": SA_AUTO["enabled"],
+        "modes": SA_WORK_MODES,
+        "modeCharging": SA_MODE_CHARGING,
+        "modeIdle": SA_MODE_IDLE,
+        "activeMode": inv.get("workMode"),
+        "charging": _any_active_charging(),
+        "reachable": snapshot is not None,
+        "minPvW": SETTINGS.get("solarMinPvW"),
+        "minBatterySoc": SETTINGS.get("solarMinBatterySoc"),
+        "wouldShare": would_share,
+        "inverter": inv,
+    }
+
+
+class SolarControl(BaseModel):
+    # Turn the automatic follow-the-charger behaviour on or off.
+    auto: Optional[bool] = None
+    # Force a specific work mode by hand. Must be one of SA_WORK_MODES.
+    workMode: Optional[str] = None
+    # Whether a manual work-mode change should also pause the automation so it
+    # isn't immediately overridden. Defaults True (manual means manual).
+    pauseAuto: bool = True
+    # Solar-aware charging thresholds.
+    minPvW: Optional[float] = Field(default=None, ge=0, le=100000)
+    minBatterySoc: Optional[float] = Field(default=None, ge=0, le=100)
+
+
+@router.post("/solar")
+async def solar_control(body: SolarControl):
+    if not SA_ENABLED:
+        raise HTTPException(400, "Solar Assistant is not configured")
+    changed = {}
+    if body.minPvW is not None:
+        SETTINGS["solarMinPvW"] = body.minPvW
+        changed["minPvW"] = body.minPvW
+    if body.minBatterySoc is not None:
+        SETTINGS["solarMinBatterySoc"] = body.minBatterySoc
+        changed["minBatterySoc"] = body.minBatterySoc
+    if body.minPvW is not None or body.minBatterySoc is not None:
+        save_settings()
+        # Re-evaluate immediately with the new thresholds if charging.
+        if SA_AUTO["enabled"] and _any_active_charging():
+            await sync_inverter_to_charging(True)
+    if body.auto is not None:
+        SA_AUTO["enabled"] = bool(body.auto)
+        changed["auto"] = SA_AUTO["enabled"]
+        # When re-enabling, immediately bring the inverter in line with reality.
+        if SA_AUTO["enabled"]:
+            await sync_inverter_to_charging(_any_active_charging())
+    if body.workMode is not None:
+        if body.workMode not in SA_WORK_MODES:
+            raise HTTPException(422, f"workMode must be one of {SA_WORK_MODES}")
+        # Record the manual override so the solar watcher gives it a grace period
+        # before resuming automatic control.
+        SA_MANUAL_OVERRIDE_AT[0] = time.time()
+        # A manual mode change while the automation is on would be undone at the
+        # next charging event. So a manual set also turns auto off, and says so,
+        # rather than silently fighting the user.
+        if SA_AUTO["enabled"] and body.pauseAuto:
+            SA_AUTO["enabled"] = False
+            changed["auto"] = False
+        ok = await SA_CLIENT.set_work_mode(body.workMode)
+        changed["workMode"] = body.workMode if ok else "unchanged"
+    return {"ok": True, "changed": changed}
+
+
 class RestoreBody(BaseModel):
     sessions: List[Dict[str, Any]] = []
     settings: Optional[Dict[str, Any]] = None
@@ -1711,6 +2251,26 @@ async def version():
 WAITING_STATES = ("Preparing", "SuspendedEVSE", "SuspendedEV")
 _autostart_attempts: Dict[str, float] = {}
 AUTOSTART_RETRY = 120        # seconds between attempts for the same connector
+AUTOSTART_REJECT_BACKOFF = 1800   # after a Rejected start, wait this long before retrying
+_autostart_backoff: Dict[str, float] = {}   # per-connector current retry interval
+_autostart_probe: Dict[str, float] = {}   # last status-probe time per connector
+_finishing_since: Dict[str, float] = {}   # when a connector entered Finishing
+
+
+def _local_now() -> datetime:
+    """Current time in the configured timezone. Resolves TZ explicitly via
+    zoneinfo rather than trusting the container's ambient clock — some container
+    setups don't apply TZ to the process clock, which would put schedule checks
+    hours off (e.g. a charge stopped as 'window closed' while actually inside
+    the window because the clock was on UTC)."""
+    tz_name = os.environ.get("TZ")
+    if tz_name:
+        try:
+            from zoneinfo import ZoneInfo
+            return datetime.now(ZoneInfo(tz_name))
+        except Exception:  # noqa: BLE001 - bad/missing tz db, fall back
+            pass
+    return datetime.now().astimezone()
 
 
 def in_schedule_window(now: Optional[datetime] = None) -> bool:
@@ -1718,7 +2278,7 @@ def in_schedule_window(now: Optional[datetime] = None) -> bool:
     schedule = SETTINGS.get("schedule")
     if not schedule:
         return True                     # no window set means always allowed
-    now = now or datetime.now().astimezone()
+    now = now or _local_now()
     minutes = now.hour * 60 + now.minute
 
     def to_minutes(text: str) -> int:
@@ -1729,6 +2289,37 @@ def in_schedule_window(now: Optional[datetime] = None) -> bool:
     if start == end:
         return True
     return start <= minutes < end if start < end else (minutes >= start or minutes < end)
+
+
+async def solar_watcher() -> None:
+    """While a car is charging, re-evaluate the inverter mode against live solar
+    every 30 seconds, so the mode follows the sun rather than being fixed at
+    plug-in. When the sun fades or the battery drops below the floor it reverts
+    to protecting the battery; when they recover it shares to the board again.
+    set_work_mode is a no-op when the mode is already correct, so a stable sky
+    means no writes."""
+    while True:
+        await asyncio.sleep(30)
+        if not SA_CLIENT or not SA_AUTO["enabled"]:
+            continue
+        # Respect a recent manual override in either state.
+        if time.time() - SA_MANUAL_OVERRIDE_AT[0] < SA_MANUAL_GRACE_SECONDS:
+            continue
+        charging = _any_active_charging()
+        if not charging:
+            # Nothing is charging. The inverter should be in idle mode (share to
+            # the whole board). If it drifted to the charging mode — e.g. a
+            # charger dropped mid-session and left it stuck — correct it. This is
+            # the safety net for the overnight "stuck on load" failure.
+            try:
+                await sync_inverter_to_charging(False)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("solar watcher idle reconcile: %s", exc)
+            continue
+        try:
+            await sync_inverter_to_charging(True)
+        except Exception as exc:  # noqa: BLE001 - best effort
+            log.warning("solar watcher: %s", exc)
 
 
 async def autostart_watcher() -> None:
@@ -1764,12 +2355,61 @@ async def autostart_watcher() -> None:
                     continue
 
                 if running or conn.get("status") not in WAITING_STATES:
-                    _autostart_attempts.pop(key, None)
-                    continue
+                    # Inside the schedule window with the charger connected but in
+                    # a state we can't start from — "Available"/no status (a
+                    # reconnect at the window boundary) or "Finishing" (a session
+                    # just ended and the charger hasn't returned to "Preparing"
+                    # yet). Nudge it to re-report status so it moves on and the
+                    # next pass can start. Without this, stopping a charge and
+                    # leaving the cable in can strand the connector in "Finishing"
+                    # and silently miss the rest of the window.
+                    PROBE_STATES = (None, "Available", "Finishing", "SuspendedEVSE")
+                    if (mode == "schedule" and inside and not running
+                            and conn.get("status") in PROBE_STATES):
+                        # "Finishing" means a session just ended with the cable
+                        # still in — a car is present. If it lingers there (stuck,
+                        # not just transiting), a RemoteStart will move it into a
+                        # fresh session. Give it one probe first, then start.
+                        if conn.get("status") == "Finishing":
+                            first_seen = _finishing_since.setdefault(key, time.time())
+                            if time.time() - first_seen >= 20:
+                                # lingered — fall through to the start attempt
+                                pass
+                            else:
+                                last_probe = _autostart_probe.get(key, 0)
+                                if time.time() - last_probe >= 20:
+                                    _autostart_probe[key] = time.time()
+                                    try:
+                                        await cp.call(request(
+                                            "TriggerMessage",
+                                            requested_message="StatusNotification"))
+                                    except Exception as exc:  # noqa: BLE001
+                                        log.debug("autostart probe failed: %s", exc)
+                                continue
+                        else:
+                            last_probe = _autostart_probe.get(key, 0)
+                            if time.time() - last_probe >= 20:
+                                _autostart_probe[key] = time.time()
+                                log.info("autostart: window open but %s is %r — "
+                                         "requesting fresh status", key, conn.get("status"))
+                                try:
+                                    await cp.call(request(
+                                        "TriggerMessage",
+                                        requested_message="StatusNotification"))
+                                except Exception as exc:  # noqa: BLE001
+                                    log.debug("autostart probe failed: %s", exc)
+                            continue
+                    else:
+                        _autostart_attempts.pop(key, None)
+                        _finishing_since.pop(key, None)
+                        continue
+                else:
+                    _finishing_since.pop(key, None)
                 if mode == "schedule" and not inside:
                     continue
                 last = _autostart_attempts.get(key, 0)
-                if time.time() - last < AUTOSTART_RETRY:
+                wait = _autostart_backoff.get(key, AUTOSTART_RETRY)
+                if time.time() - last < wait:
                     continue
 
                 _autostart_attempts[key] = time.time()
@@ -1779,9 +2419,19 @@ async def autostart_watcher() -> None:
                         "RemoteStartTransaction",
                         id_tag=SETTINGS.get("autoStartIdTag", "AUTO"),
                         connector_id=connector_id))
+                    status = getattr(response, "status", None)
                     record(cp.id, "AutoStart",
-                           {"connectorId": connector_id,
-                            "status": getattr(response, "status", None)})
+                           {"connectorId": connector_id, "status": status})
+                    if status == "Rejected":
+                        # The charger won't start — almost always because the car
+                        # is already at target and sitting in SuspendedEV (a
+                        # completed session left plugged in). Retrying every couple
+                        # of minutes just spams the log and the charger, so back
+                        # off. It still recovers if the situation changes (battery
+                        # drops and the car accepts again), just on a slow cadence.
+                        _autostart_backoff[key] = AUTOSTART_REJECT_BACKOFF
+                    else:
+                        _autostart_backoff.pop(key, None)
                 except (asyncio.TimeoutError, OSError) as exc:
                     log.warning("autostart failed: %s", exc)
 
@@ -1934,6 +2584,18 @@ async def main(host: str, ocpp_port: int, api_port: int) -> None:
         log.info("No certificate at %s — serving plain HTTP", TLS_CERT)
 
     watcher = asyncio.create_task(autostart_watcher())
+    solar_task = asyncio.create_task(solar_watcher()) if SA_ENABLED else None
+
+    if SA_ENABLED:
+        log.info("Solar Assistant at %s: work mode will follow charging "
+                 "(%s while charging, %s idle)", SA_HOST, SA_MODE_CHARGING, SA_MODE_IDLE)
+        # Self-correct on startup: if nothing is charging, make sure the inverter
+        # is in idle mode, so a restart mid-idle never leaves it stuck.
+        async def _sa_startup():
+            await asyncio.sleep(3)
+            if not _any_active_charging():
+                await sync_inverter_to_charging(False)
+        asyncio.create_task(_sa_startup())
 
     tls_options = {}
     if TLS_ENABLED:

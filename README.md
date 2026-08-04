@@ -6,23 +6,34 @@ with Docker, and control your charger from a browser or phone — on your own
 network, or remotely. You can create a port forward on port 8081 and access this anywhere,
 alternatively you can just use a VPN for added security
 
-I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCPP 1.6, then JTech Grid Control was born!
-
 ```
 TeltoCharge EVC  ──ws://host:9000/EVC121──▶  central_system.py  ◀──https://host:8080── (FW) remote.yourdomain.com:8081
 ```
 
 <img src="doc/dash1.jpg" width="32%" /> <img src="doc/dash2.jpg" width="32%" /> <img src="doc/dash3.jpg" width="32%" />
 
-## New in v39
+## New in v53
 
 **Solar Assistant integration and solar-aware charging.** If you run a
 [Solar Assistant](https://solar-assistant.io) inverter, the dashboard now shows
-it live — battery, solar, load and grid — and drives its work mode to follow the
-charger. While a car is charging it shares surplus solar to the car when there's
-enough sun and battery headroom, and protects the battery otherwise, with the
-thresholds adjustable right on the panel. Plus refreshed charger-mode logic and
-a tidier inverter card with the active mode shown as a solid green button.
+it live — battery, solar, load and grid, each with a fill-bar gauge — and drives
+its work mode to follow the charger. While a car is charging it shares surplus
+solar to the car when there's enough sun and battery headroom, and protects the
+battery otherwise, with the thresholds adjustable right on the panel. The active
+mode is shown as a solid green button.
+
+Since v39, this release also hardens the automation and connection handling:
+
+- If the charger drops its connection mid-session, the inverter no longer gets
+  stranded on the charging work mode — it returns to sharing the battery, and a
+  background safety net corrects a stuck mode within 30 seconds.
+- A manual work-mode change now holds for a short grace period instead of being
+  immediately overridden by the automation.
+- After a container restart or a WebSocket reconnect, the charger reports its
+  status automatically, so the connector shows online without clicking "Bring
+  online".
+- Usage graphs label each bar with its exact value; the redundant session list
+  under the graphs was removed.
 
 <img src="doc/v39-2.png" width="90%" />
 
@@ -57,10 +68,11 @@ a tidier inverter card with the active mode shown as a solid green button.
   the inverter's work mode can follow the charger and become solar-aware, so the car
   draws surplus solar when available and spares the battery when it isn't. Off unless configured.
 
+  I created this purely out of frustration as the premium Teltonika Teltocharge series of EV chargers does not allow any remote control except for bluetooth, well it supports OCPP 1.6, then JTech Grid Control was born!
 
 ## Requirements
 
-- A TeltoCharge EVC Series charger or generic OCPP charger.
+- A TeltoCharge EVC Series charger (other OCPP 1.6J chargers may work but are untested).
 - This is a fully OCPP 1.6 compliant webapp, so other OCPP chargers should work. 
 - Docker, or Docker + Container Manager on a Synology NAS.
 - The charger and the host on the same LAN.

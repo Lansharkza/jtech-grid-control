@@ -1,6 +1,6 @@
 JTech Grid Control
-build 2026-07-26-v31
-image tag jtech-grid-control:35
+build 2026-07-28-v53
+image tag jtech-grid-control:57
 
 OCPP 1.6J central system for the Teltonika TeltoCharge EVC121 (tethered, single
 phase, 32 A). Tested against firmware reporting Solar / SolarCharging keys.

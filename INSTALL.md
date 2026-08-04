@@ -98,7 +98,7 @@ handler. All of these load without error and simply do nothing.
 ## Verifying an install
 
 ```bash
-./verify.sh http://192.168.0.121:8081
+./verify.sh http://YOUR_HOST:8081
 ```
 
 Checks the build number, that the login page and stylesheet are served, and that

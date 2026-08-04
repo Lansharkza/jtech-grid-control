@@ -135,7 +135,20 @@ class Simulator(BaseChargePoint):
 
     @on("TriggerMessage")
     async def on_trigger(self, requested_message, **kwargs):
+        # A real charger responds to a StatusNotification trigger by actually
+        # sending its current status. Mirror that so the dashboard repopulates.
+        if requested_message == "StatusNotification":
+            asyncio.create_task(self._send_status())
         return _resolve(call_result, "TriggerMessage")(status="Accepted")
+
+    async def _send_status(self):
+        await asyncio.sleep(0.2)
+        try:
+            await self.call(_resolve(call, "StatusNotification")(
+                connector_id=1, error_code="NoError",
+                status="Charging" if self.plugged_in else "Available"))
+        except Exception:
+            pass
 
     @on("ClearCache")
     async def on_clear_cache(self, **kwargs):
