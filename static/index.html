@@ -94,8 +94,7 @@
   .meta b{color:var(--ink); font-weight:600}
 
   .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:9px; margin-top:12px}
-  .tile{padding:10px 11px; background:var(--panel-2); border:1px solid var(--line);
-        border-top:2px solid var(--t,var(--line))}
+  .tile{padding:10px 11px; background:var(--panel-2); border:1px solid var(--line)}
   .tile .k{font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim)}
   .tile .v{font-size:20px; font-weight:600; margin-top:2px; color:var(--t,var(--ink))}
   .tile .u{font-size:10px; color:var(--dim); font-weight:400}
@@ -105,8 +104,7 @@
 
   .week{display:grid; grid-template-columns:repeat(2,1fr); gap:9px}
   @media (min-width:640px){ .week{grid-template-columns:repeat(5,1fr)} }
-  .wk{padding:11px 12px; background:var(--panel-2); border:1px solid var(--line);
-      border-left:3px solid var(--w,var(--line))}
+  .wk{padding:11px 12px; background:var(--panel-2); border:1px solid var(--line)}
   .wk-k{font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim)}
   .wk-v{font-size:clamp(17px,5vw,22px); font-weight:700; margin-top:3px; color:var(--w,var(--ink))}
 
@@ -126,11 +124,62 @@
   .graph-total{display:block; font-size:18px; font-weight:700; margin-top:2px}
   .daychart{width:100%; height:190px; display:block; overflow:visible}
   .daychart .grid{stroke:#1a2440; stroke-width:1}
-  .daychart .ytick{fill:var(--dim); font-size:11px}
-  .daychart .xtick{fill:var(--dim); font-size:11px}
+  .daychart .ytick{fill:var(--dim); font-size:8px}
+  .daychart .xtick{fill:var(--dim); font-size:9px}
+  .daychart .barval{fill:var(--dim); font-size:7px; font-variant-numeric:tabular-nums}
   .daychart .chart-none{fill:var(--dim); font-size:13px}
   .daychart .g-energy{fill:url(#gradEnergy)}
   .daychart .g-cost{fill:url(#gradCost)}
+  .inv-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+  .inv-mode-cell{border-color:color-mix(in srgb,var(--lime) 45%,transparent)}
+  .inv-mode-cell .inv-v{color:var(--lime)}
+  .inv-thresh{margin-top:16px; padding:12px 13px; background:var(--panel-2);
+              border:1px solid var(--line); border-radius:8px}
+  .inv-thresh-head{font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+                   color:var(--lime); margin-bottom:10px}
+  .inv-thresh-row{display:flex; align-items:center; justify-content:space-between; gap:10px;
+                  font-size:13px; margin-bottom:8px}
+  .inv-thresh-row label{color:var(--ink)}
+  .inv-inline{display:flex; align-items:center; gap:6px; color:var(--dim); white-space:nowrap}
+  .inv-inline input{width:64px; padding:6px 8px; text-align:right; font-size:13px}
+  .inv-decision{font-size:12px; color:var(--dim); margin-top:6px; line-height:1.5}
+  .inv-modes-head{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim);
+                  margin:16px 0 8px}
+  .inv-modes{display:grid; grid-template-columns:1fr; gap:9px}
+  @media(min-width:560px){ .inv-modes{grid-template-columns:repeat(3,1fr)} }
+  .invmode{padding:12px 11px; text-align:left; background:var(--panel-2); border:1px solid var(--line);
+           border-radius:8px; cursor:pointer; min-height:auto; transition:all .15s}
+  /* Active mode: solid green fill with dark text, matching the Apply button, so
+     the active mode is legible at a glance. */
+  .invmode[aria-pressed="true"]{background:linear-gradient(90deg,var(--lime),#65d94a);
+    border-color:transparent; box-shadow:none}
+  .invmode[aria-pressed="true"] .t{color:#06210a}
+  .invmode .t{font-size:13px; font-weight:700; color:var(--m,var(--ink))}
+  .invmode .d{font-size:10px; color:var(--dim); margin-top:3px; line-height:1.4; text-transform:none}
+  .m-sun{--m:var(--sun)}
+  /* When solar is producing, gently pull the eye to the "share to board" option. */
+  #solarCard.sun-up .invmode[data-mode="Zero export to CT"]:not([aria-pressed="true"]){
+    border-color:color-mix(in srgb,var(--lime) 55%,transparent)}
+  @media(min-width:560px){ .inv-grid{grid-template-columns:repeat(3,1fr)} }
+  .inv{background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:10px 12px}
+  .inv-k{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim)}
+  .inv-v{font-size:15px; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums}
+  .inv-bar{height:8px; background:#1e2a44; border-radius:4px; overflow:hidden; margin-top:8px}
+  .inv-bar-fill{height:100%; border-radius:4px; width:0%; transition:width .4s ease}
+  .bf-batt{background:#8ab4f8}
+  .bf-solar{background:#a3e0c8}
+  .bf-load{background:#d8b4fe}
+  .inv-scale{font-size:9px; color:#4d5a75; margin-top:3px; text-align:right}
+  .inv-auto{margin-top:14px}
+  .switch{display:flex; align-items:center; gap:9px; cursor:pointer; font-size:13px}
+  .switch input{width:auto; margin:0}
+  .inv-hint{font-size:11px; color:var(--dim); margin-top:6px}
+  .inv-manual{display:flex; gap:9px; margin-top:14px; flex-wrap:wrap}
+  .inv-manual .btn{flex:1; min-width:130px; padding:10px 12px; font-size:12px; min-height:auto}
+  .b-sky{border-color:var(--sky); color:var(--sky)}
+  .b-lime{border-color:var(--lime); color:var(--lime)}
+  .inv-warn{margin-top:12px; font-size:12px; color:var(--sun); background:color-mix(in srgb,var(--sun) 12%,transparent);
+            border:1px solid color-mix(in srgb,var(--sun) 40%,transparent); border-radius:6px; padding:8px 11px}
   .monthnav{display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:14px}
   .navarrow{width:34px; height:34px; padding:0; font-size:20px; line-height:1;
             background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
@@ -447,12 +496,57 @@
         <div class="graph-head">Money spent <span id="gCostTotal" class="graph-total c-cost">—</span></div>
         <svg id="costChart" class="daychart" viewBox="0 0 620 200" preserveAspectRatio="none" aria-hidden="true"></svg>
       </div>
-      <div id="usageList" class="usage-list"><div class="empty">—</div></div>
-      <div class="pager">
-        <button class="rangebtn" data-act="sessPrev">Newer</button>
-        <span id="sessRange" class="pager-info">—</span>
-        <button class="rangebtn" data-act="sessNext">Older</button>
+    </div>
+  </div>
+
+  <div class="card" id="solarCard" hidden>
+    <h2 class="h-lime">Inverter</h2>
+    <div class="body">
+      <div class="inv-grid">
+        <div class="inv"><div class="inv-k">Battery</div><div class="inv-v" id="invSoc">—</div>
+          <div class="inv-bar"><div class="inv-bar-fill bf-batt" id="invSocBar"></div></div></div>
+        <div class="inv"><div class="inv-k">Battery power</div><div class="inv-v" id="invBattW">—</div></div>
+        <div class="inv"><div class="inv-k">Solar</div><div class="inv-v" id="invPv">—</div>
+          <div class="inv-bar"><div class="inv-bar-fill bf-solar" id="invPvBar"></div></div>
+          <div class="inv-scale">0 – 10400 W</div></div>
+        <div class="inv"><div class="inv-k">Load</div><div class="inv-v" id="invLoad">—</div>
+          <div class="inv-bar"><div class="inv-bar-fill bf-load" id="invLoadBar"></div></div>
+          <div class="inv-scale">0 – 8000 W</div></div>
+        <div class="inv"><div class="inv-k">Grid</div><div class="inv-v" id="invGrid">—</div></div>
+        <div class="inv inv-mode-cell"><div class="inv-k">Work mode</div><div class="inv-v" id="invMode">—</div></div>
       </div>
+
+      <div class="inv-modes-head">Work mode</div>
+      <div class="inv-modes">
+        <button class="invmode m-sky" data-mode="Zero export to load" data-act="setInvMode"
+                aria-pressed="false"><div class="t">Zero export to load</div></button>
+        <button class="invmode m-lime" data-mode="Zero export to CT" data-act="setInvMode"
+                aria-pressed="false"><div class="t">Zero export to CT</div></button>
+      </div>
+
+      <div class="inv-thresh">
+        <div class="inv-thresh-head">Solar-aware charging</div>
+        <div class="inv-thresh-row">
+          <label for="minPvKw">Share to EV Charger when solar is at least</label>
+          <span class="inv-inline"><input id="minPvKw" type="number" min="0" max="20" step="0.5"
+                 data-change="saveSolarThresholds"> kW</span>
+        </div>
+        <div class="inv-thresh-row">
+          <label for="minBattSoc">and battery is at least</label>
+          <span class="inv-inline"><input id="minBattSoc" type="number" min="0" max="100" step="5"
+                 data-change="saveSolarThresholds"> %</span>
+        </div>
+        <div class="inv-decision" id="invDecision"></div>
+      </div>
+
+      <div class="inv-auto">
+        <label class="switch">
+          <input type="checkbox" id="invAuto" data-change="setSolarAuto">
+          <span>Follow charging automatically</span>
+        </label>
+        <div class="inv-hint" id="invHint">Battery stays on the load while charging, shared to the board otherwise.</div>
+      </div>
+      <div class="inv-warn" id="invWarn" hidden>Inverter unreachable — check Solar Assistant.</div>
     </div>
   </div>
 
@@ -505,7 +599,7 @@
           <div class="d">Press Start yourself.</div><div class="badge">● active</div></button>
         <button class="mode m-lime" aria-pressed="false" data-auto="plugged"
                 data-act="setAutoStart"><div class="t">On plug-in</div>
-          <div class="d">Starts as soon as the cable is in.</div><div class="badge">● active</div></button>
+          <div class="d">Starts at full power whenever the cable is in, ignoring the schedule window.</div><div class="badge">● active</div></button>
         <button class="mode m-cyan" aria-pressed="false" data-auto="schedule"
                 data-act="setAutoStart"><div class="t">In window</div>
           <div class="d">Starts and stops with the schedule above.</div><div class="badge">● active</div></button>
@@ -597,7 +691,7 @@
 
 <div id="toast"></div>
 <script>
-const PAGE_BUILD = '2026-07-26-v31';
+const PAGE_BUILD = '2026-07-28-v53';
 let current = null, state = null, tick = null;
 let settings = {pricePerKwh:3.55, currency:'R', batteryKwh:60, targetSoc:80,
                 startSoc:null, chargingEfficiency:0.9, autoStart:'off'};
@@ -610,6 +704,7 @@ const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g,
   ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const n1 = v => v == null ? '—' : (Math.round(v*10)/10).toFixed(1);
+const n0 = v => v == null ? '—' : String(Math.round(v));
 const n2 = v => v == null ? '—' : (Math.round(v*100)/100).toFixed(2);
 const money = v => v == null ? '—' : `${esc(settings.currency)}${(Math.round(v*100)/100).toFixed(2)}`;
 
@@ -1089,8 +1184,6 @@ async function renderWeek(){
 // --- Usage: every session in a chosen month, newest first ---
 let usageMonth = new Date();   // first of the shown month is derived from this
 usageMonth.setDate(1);
-let sessPage = 0;
-const SESS_PER = 50;
 
 function monthBounds(d){
   const y = d.getFullYear(), m = d.getMonth();
@@ -1100,21 +1193,22 @@ function monthBounds(d){
   return {first, last};
 }
 
-function monthPrev(){ usageMonth.setMonth(usageMonth.getMonth()-1); sessPage = 0; renderUsage(); }
+function monthPrev(){ usageMonth.setMonth(usageMonth.getMonth()-1); renderUsage(); }
 function monthNext(){
   const now = new Date();
   // don't page past the current month
   if(usageMonth.getFullYear() === now.getFullYear() && usageMonth.getMonth() >= now.getMonth()) return;
-  usageMonth.setMonth(usageMonth.getMonth()+1); sessPage = 0; renderUsage();
+  usageMonth.setMonth(usageMonth.getMonth()+1); renderUsage();
 }
-function sessPrev(){ if(sessPage > 0){ sessPage--; renderUsage(); } }
-function sessNext(){ sessPage++; renderUsage(); }
 
 // A per-day bar chart across a month, styled like the reference app: gridlines
 // with left-hand scale labels, day numbers on the x-axis, gradient bars.
-function drawDayChart(id, daily, valueOf, cls, fmt){
+function drawDayChart(id, daily, valueOf, cls, fmt, labelFmt){
+  labelFmt = labelFmt || fmt;
   const svg = $(id);
-  const W = 620, H = 200, padL = 4, padB = 22, padT = 6;
+  // Wider left pad reserves room for the axis numbers so the first bars don't
+  // collide with them at the start of the month.
+  const W = 620, H = 200, padL = 30, padB = 22, padT = 6;
   const values = daily.map(valueOf);
   const peak = Math.max(...values, 0);
   if(peak <= 0){
@@ -1125,6 +1219,8 @@ function drawDayChart(id, daily, valueOf, cls, fmt){
   const n = daily.length;
   const slot = plotW / n;
   const barW = Math.max(2, Math.min(slot * 0.6, 16));
+  // Axis labels are plain numbers (no "kWh"/"R") to stay narrow.
+  const axisFmt = v => (v >= 10 ? Math.round(v) : Math.round(v*10)/10);
 
   let out = '';
   // four horizontal gridlines with scale labels
@@ -1132,16 +1228,21 @@ function drawDayChart(id, daily, valueOf, cls, fmt){
     const y = padT + plotH * (1 - i/4);
     const val = peak * i/4;
     out += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}" class="grid"/>`;
-    out += `<text x="${padL+2}" y="${(y-3).toFixed(1)}" class="ytick">${fmt(val)}</text>`;
+    out += `<text x="${padL-3}" y="${(y-3).toFixed(1)}" class="ytick" text-anchor="end">${axisFmt(val)}</text>`;
   }
-  // bars
+  // bars, each with its exact value above it
   daily.forEach((d, i) => {
     const v = valueOf(d);
     if(v <= 0) return;
     const h = plotH * (v / peak);
     const x = padL + slot*i + (slot - barW)/2;
     const y = padT + plotH - h;
+    const cx = x + barW/2;
     out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="${cls}"/>`;
+    // Small value label sitting just above the bar top. If the bar is so tall the
+    // label would clip the chart top, nudge it just below the top instead.
+    const labelY = (y - 3 < padT + 8) ? padT + 8 : y - 3;
+    out += `<text x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" class="barval" text-anchor="middle">${labelFmt(v)}</text>`;
   });
   // x-axis day labels every 4th day
   daily.forEach((d, i) => {
@@ -1168,40 +1269,8 @@ async function renderUsage(){
     $('gEnergyTotal').textContent = `${n2(t.energyWh/1000)} kWh`;
     $('gCostTotal').textContent   = money(t.cost);
     drawDayChart('energyChart', h.daily, d => (d.energyWh||0)/1000, 'g-energy', v => `${n1(v)}`);
-    drawDayChart('costChart',   h.daily, d => d.cost||0,            'g-cost',   v => money(v));
+    drawDayChart('costChart',   h.daily, d => d.cost||0,            'g-cost',   v => money(v), v => n0(v));
   }catch(e){ /* leave dashes */ }
-
-  let d;
-  try{
-    d = await (await api(
-      `/api/sessions?start=${first}&end=${last}&limit=${SESS_PER}&offset=${sessPage*SESS_PER}`)).json();
-  }catch(e){ return; }
-
-  if(!d.total){
-    $('usageList').innerHTML = '<div class="empty">No sessions this month.</div>';
-    $('sessRange').textContent = '—';
-    return;
-  }
-  if(sessPage*SESS_PER >= d.total){ sessPage = Math.floor((d.total-1)/SESS_PER); return renderUsage(); }
-
-  $('usageList').innerHTML = d.sessions.map(s => {
-    const started = s.startedAt ? new Date(s.startedAt) : null;
-    const when = started
-      ? started.toLocaleString([], {hour:'2-digit', minute:'2-digit'}) + ' ' +
-        started.toLocaleDateString([], {day:'2-digit', month:'2-digit', year:'2-digit'})
-      : '—';
-    return `<div class="urow">
-      <div class="u-energy c-kwh">${n2((s.energyWh||0)/1000)} <span class="u-unit">kWh</span></div>
-      <div class="u-mid">
-        <div class="u-dur">${hhmmss(s.durationSeconds)}</div>
-        <div class="u-when">${esc(when)}</div>
-      </div>
-      <div class="u-cost">${money(s.cost)}</div></div>`;
-  }).join('');
-
-  const from = sessPage*SESS_PER + 1;
-  const to = Math.min(from + d.sessions.length - 1, d.total);
-  $('sessRange').textContent = d.total > SESS_PER ? `${from}–${to} of ${d.total}` : `${d.total} session${d.total===1?'':'s'}`;
 }
 
 function renderConnectors(cp){
@@ -1241,6 +1310,123 @@ function schedulePoll(ms){
   if(ms !== pollMs || !pollTimer){
     pollMs = ms; clearInterval(pollTimer); pollTimer = setInterval(refresh, ms);
   }
+}
+
+// The inverter panel reads from Solar Assistant, so it polls on its own slower
+// cadence to avoid hammering that box on the 1s charging poll.
+setInterval(() => renderSolar(), 15000);
+
+async function renderSolar(){
+  let d;
+  try{ d = await (await api('/api/solar')).json(); }catch(e){ return; }
+  if(!d.configured){ $('solarCard').hidden = true; return; }
+  $('solarCard').hidden = false;
+
+  $('invWarn').hidden = d.reachable;
+  const inv = d.inverter || {};
+  const w = v => (v == null ? '—' : `${Math.round(v)} W`);
+  $('invSoc').textContent  = inv.batterySoc == null ? '—' : `${inv.batterySoc}%`;
+  // battery power: negative = charging on this inverter
+  // On this inverter's per-unit topic, POSITIVE battery power = charging,
+  // NEGATIVE = discharging (opposite of the aggregate total/ topic).
+  $('invBattW').textContent = inv.batteryW == null ? '—'
+    : `${Math.round(Math.abs(inv.batteryW))} W ${inv.batteryW > 0 ? 'charging' : 'discharging'}`;
+  $('invPv').textContent   = w(inv.pvW);
+  $('invLoad').textContent = w(inv.loadW);
+  $('invGrid').textContent = inv.gridW == null ? '—'
+    : `${Math.round(Math.abs(inv.gridW))} W ${inv.gridW < 0 ? 'export' : 'import'}`;
+  $('invMode').textContent = inv.workMode || '—';
+
+  // Fill-bars with fixed scales: battery 0-100%, solar 0-10.4kW, load 0-8kW.
+  const pct = (val, max) => val == null ? 0 : Math.max(0, Math.min(100, (val / max) * 100));
+  $('invSocBar').style.width  = `${pct(inv.batterySoc, 100)}%`;
+  $('invPvBar').style.width   = `${pct(inv.pvW, 10400)}%`;
+  $('invLoadBar').style.width = `${pct(inv.loadW, 8000)}%`;
+
+  // Light the button matching the inverter's current work mode.
+  document.querySelectorAll('.invmode').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.mode === d.activeMode)));
+
+  // Threshold inputs (only overwrite when not focused, so typing isn't clobbered).
+  if(document.activeElement !== $('minPvKw') && d.minPvW != null)
+    $('minPvKw').value = (d.minPvW / 1000);
+  if(document.activeElement !== $('minBattSoc') && d.minBatterySoc != null)
+    $('minBattSoc').value = d.minBatterySoc;
+
+  // Explain what solar-aware charging is doing, in plain terms.
+  const pvKw = inv.pvW == null ? null : (inv.pvW/1000).toFixed(1);
+  const soc = inv.batterySoc;
+  if(d.wouldShare == null){
+    $('invDecision').textContent = '';
+  }else if(d.charging){
+    $('invDecision').textContent = d.wouldShare
+      ? `☀ Feeding solar to the car — ${pvKw} kW solar, battery at ${soc}%.`
+      : `⛊ Charging from grid, saving the battery — only ${pvKw} kW solar / battery ${soc}%.`;
+  }else{
+    $('invDecision').textContent = d.wouldShare
+      ? `☀ Plenty of sun (${pvKw} kW) — a charge now would run off solar.`
+      : `Not enough sun yet (${pvKw} kW) — a charge now would use the grid to spare the battery.`;
+  }
+
+  // Highlight solar when it's actually producing, as a nudge to share to board.
+  $('solarCard').classList.toggle('sun-up', (inv.pvW || 0) > 300);
+
+  $('invAuto').checked = !!d.auto;
+  if(d.charging){
+    $('invHint').textContent = `Charging now — mode follows the sun.`;
+  }else if(d.auto){
+    $('invHint').textContent = `Idle — battery shared to the board.`;
+  }else{
+    $('invHint').textContent = 'Automation off — set the mode by hand above.';
+  }
+}
+
+async function saveSolarThresholds(){
+  const pvKw = parseFloat($('minPvKw').value);
+  const soc = parseFloat($('minBattSoc').value);
+  const body = {};
+  if(!isNaN(pvKw)) body.minPvW = Math.round(pvKw * 1000);
+  if(!isNaN(soc)) body.minBatterySoc = soc;
+  if(!Object.keys(body).length) return;
+  try{
+    await api('/api/solar', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)});
+    toast('Solar thresholds saved.');
+  }catch(e){ toast('Could not save thresholds.', true); }
+  renderSolar();
+}
+
+async function setSolarAuto(){
+  const on = $('invAuto').checked;
+  try{
+    await api('/api/solar', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({auto: on})});
+    toast(on ? 'Inverter will follow charging.' : 'Automatic inverter control off.');
+  }catch(e){ toast('Could not change setting.', true); }
+  renderSolar();
+}
+
+async function setInvMode(el){
+  const mode = el.dataset.mode;
+  // Light the clicked button straight away — the inverter can take a moment to
+  // report the new mode back, and the poll will reconcile.
+  document.querySelectorAll('.invmode').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  try{
+    const r = await (await api('/api/solar', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({workMode: mode, pauseAuto: true})})).json();
+    const applied = r.changed && r.changed.workMode;
+    if(applied === 'unchanged'){
+      toast(`Inverter was already on "${mode}".`);
+    }else if(r.changed && r.changed.auto === false){
+      toast(`Set to "${mode}". Automatic control paused.`);
+    }else{
+      toast(`Inverter set to "${mode}".`);
+    }
+  }catch(e){ toast('Could not set inverter mode.', true); }
+  // Give the inverter a beat to apply, then read the true state back.
+  setTimeout(renderSolar, 1500);
 }
 
 async function refresh(){
@@ -1308,7 +1494,8 @@ const ACTIONS = {
   signOut, startCharge, stopCharge, applyLimit, checkSchedule, setSchedule, clearSchedule,
   readMode, readConfig, writeConfig, applyRecommended, showMeasurands,
   backup: downloadBackup, restore: restoreBackup,
-  range7, range30, rangeMonth, rangeCustom, sessPrev, sessNext, monthPrev, monthNext,
+  range7, range30, rangeMonth, rangeCustom, monthPrev, monthNext,
+  setSolarAuto, setInvMode, saveSolarThresholds,
   clearLimit: () => post('clear-limit', {}),
   solarOff:   () => post('solar', {enabled:false}),
   reset:        el => post('reset', {type: el.dataset.arg}),
@@ -1366,7 +1553,7 @@ fetch('/version').then(r => r.json()).then(d => {
   document.querySelector('main').prepend(bar);
 });
 
-loadSettings().then(() => { refresh(); renderWeek(); renderUsage(); });
+loadSettings().then(() => { refresh(); renderWeek(); renderUsage(); renderSolar(); });
 schedulePoll(4000);
 
 </script>
